@@ -13,8 +13,11 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
 - **Installer** : parcours adapté à l'appareil (bouton d'installation Android, guide en 3 étapes sur iPhone,
   aide si le lien est ouvert dans WhatsApp/Instagram), QR code et bouton Partager.
 
-Les données restent pour l'instant sur l'appareil (localStorage). La synchronisation entre les téléphones
-de l'équipe et le relevé automatique des picks sont les prochaines étapes.
+- **Équipe** : créer ou rejoindre une équipe avec un code d'invitation (lien partageable `#/join/CODE`), voir les membres,
+  partager l'historique de chacun avec les téléphones de l'équipe (Supabase, voir [supabase/README.md](supabase/README.md)).
+  Sans Supabase configuré, les données restent sur l'appareil (localStorage).
+
+Le relevé automatique des picks de l'équipe (userscript) est la prochaine étape.
 
 ## Commandes
 

@@ -282,7 +282,7 @@ kbd {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
@@ -434,6 +434,44 @@ kbd {
   background: var(--bg);
 }
 
+.badge.ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.btn.danger {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+.syncbar {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+.syncbar-error {
+  color: var(--bad);
+}
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-align: center;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  margin: 10px 0;
+}
+.code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+summary {
+  cursor: pointer;
+  min-height: 32px;
+}
 .member-row {
   display: flex;
   justify-content: space-between;
