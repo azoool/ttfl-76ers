@@ -63,19 +63,17 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
     void run(() => team.create(teamName.trim(), pseudo.trim(), mine()))
   }
 
-  const ready = consent && pseudo.trim().length > 0 && !busy
+  const profileOk = consent && pseudo.trim().length > 0
+  const ready = profileOk && !busy
+  // Dit pourquoi un bouton est grisé, au lieu de laisser deviner.
+  const profileHint = pseudo.trim().length === 0 ? 'Saisis d’abord ton pseudo TTFL (bloc « Toi », juste au-dessus).' : !consent ? 'Coche d’abord la case d’accord (bloc « Toi », juste au-dessus).' : undefined
 
   return (
     <>
       {err && <div className="notice bad">{err}</div>}
 
-      <form className="card" onSubmit={onJoin}>
-        <h2>Rejoindre mon équipe</h2>
-        <p>Entre le code reçu de ton équipe (ou ouvre le lien d’invitation).</p>
-        <label className="field">
-          <span>Code d’invitation</span>
-          <input value={code} onChange={(e) => setCode(normalizeCode(e.target.value))} placeholder="ABCD2345" maxLength={8} autoCapitalize="characters" autoCorrect="off" className="code-input" />
-        </label>
+      <section className="card">
+        <h2>Toi</h2>
         <label className="field">
           <span>Ton pseudo TTFL</span>
           <input value={pseudo} onChange={(e) => setPseudo(e.target.value)} placeholder="ex. Knicko" autoCapitalize="off" autoCorrect="off" maxLength={40} />
@@ -84,9 +82,20 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           {CONSENT}
         </label>
+        <p className="muted small">C’est le pseudo que tes coéquipiers verront. Il sert aussi à retrouver tes picks si tu changes de téléphone.</p>
+      </section>
+
+      <form className="card" onSubmit={onJoin}>
+        <h2>Rejoindre mon équipe</h2>
+        <p>Entre le code reçu de ton équipe (ou ouvre le lien d’invitation).</p>
+        <label className="field">
+          <span>Code d’invitation</span>
+          <input value={code} onChange={(e) => setCode(normalizeCode(e.target.value))} placeholder="ABCD2345" maxLength={8} autoCapitalize="characters" autoCorrect="off" className="code-input" />
+        </label>
         <button className="btn primary big" type="submit" disabled={!ready || code.length !== 8}>
           {busy ? 'Connexion…' : 'Rejoindre'}
         </button>
+        {profileHint && <p className="muted small">{profileHint}</p>}
       </form>
 
       <details className="card">
@@ -98,10 +107,11 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
             <span>Nom de l’équipe</span>
             <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="ex. 76ersFR" maxLength={60} />
           </label>
-          <p className="muted small">Tu rejoins avec le pseudo et l’accord saisis ci-dessus. Un code d’invitation est généré ensuite.</p>
+          <p className="muted small">Tu entres dans l’équipe avec le pseudo et l’accord du bloc « Toi ». Un code d’invitation est généré ensuite.</p>
           <button className="btn big" type="submit" disabled={!ready || teamName.trim().length === 0}>
-            Créer l’équipe
+            {busy ? 'Création…' : 'Créer l’équipe'}
           </button>
+          {profileHint && <p className="muted small">{profileHint}</p>}
         </form>
       </details>
     </>
