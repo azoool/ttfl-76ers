@@ -9,6 +9,11 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
 
 - **Disponibles** : matchs du jour (ESPN), joueurs des équipes qui jouent, blessures, et pour chaque joueur
   qui, dans l'équipe, peut le prendre (ou dans combien de jours). Filtres « dispo pour tous » et « masquer les absents ».
+  Les joueurs sont regroupés par équipe (ordre alphabétique, une liste déroulante par équipe avec logo et nom complet),
+  classés par **moyenne TTFL de la saison** décroissante puis par nom. La moyenne est calculée à partir des totaux de
+  saison d'ESPN avec la formule TTFL ; elle a été comparée à celle de TTFL Advisor : identique au centième pour 84 %
+  des joueurs, écart moyen de 0,02 point (quelques stats corrigées d'un point d'un côté ou de l'autre).
+  Un joueur sans match de saison régulière n'a pas de moyenne (« – »).
 - **Importer** : on colle le tableau `?tpl=historique` de TTFL ; le parseur reconnaît chaque pick et vérifie le score avec la formule TTFL.
 - **Installer** : parcours adapté à l'appareil (bouton d'installation Android, guide en 3 étapes sur iPhone,
   aide si le lien est ouvert dans WhatsApp/Instagram), QR code et bouton Partager.

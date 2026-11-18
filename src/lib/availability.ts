@@ -68,6 +68,8 @@ export function lockInfo(
 }
 
 export interface Candidate {
+  /** identifiant ESPN du joueur */
+  id?: string
   name: string
   team: string
   teamId?: string

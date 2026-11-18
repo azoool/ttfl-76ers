@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { availabilityRows, type LockInfo, type Member } from '../lib/availability'
 import { addDays, daysBetween, formatDayFr, parisToday } from '../lib/dates'
 import { deckClosing } from '../lib/deck'
-import { fetchNight, type Night } from '../lib/espn'
+import { fetchNight, fetchSeasonStats, type Night } from '../lib/espn'
+import { groupByTeam } from '../lib/groups'
+import { indexStats, type StatsIndex } from '../lib/seasonStats'
 import { playerKey } from '../lib/ttfl'
 
 type Load =
@@ -10,7 +12,15 @@ type Load =
   | { status: 'error'; message: string }
   | { status: 'ok'; night: Night }
 
-const PAGE = 50
+type StatsLoad =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ok'; index: StatsIndex }
+
+// `signDisplay: 'negative'` évite d'afficher « -0,0 » pour une moyenne à peine négative.
+const avgFormat = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'negative' })
+const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`
+const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 function injuryBadge(status: string): { label: string; cls: string } {
   const s = status.toLowerCase()
@@ -34,19 +44,32 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
   const [query, setQuery] = useState('')
   const [onlyAll, setOnlyAll] = useState(false)
   const [hideOut, setHideOut] = useState(true)
-  const [limit, setLimit] = useState(PAGE)
+  const [stats, setStats] = useState<StatsLoad>({ status: 'loading' })
+  const [statsReload, setStatsReload] = useState(0)
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     let cancelled = false
     setLoad({ status: 'loading' })
-    setLimit(PAGE)
     fetchNight(date)
       .then((night) => !cancelled && setLoad({ status: 'ok', night }))
-      .catch((e) => !cancelled && setLoad({ status: 'error', message: e instanceof Error ? e.message : String(e) }))
+      .catch((e) => !cancelled && setLoad({ status: 'error', message: errorMessage(e) }))
     return () => {
       cancelled = true
     }
   }, [date, reload])
+
+  // Les moyennes TTFL de la saison ne dépendent pas du jour : chargées une fois (puis en cache).
+  useEffect(() => {
+    let cancelled = false
+    setStats({ status: 'loading' })
+    fetchSeasonStats()
+      .then((s) => !cancelled && setStats({ status: 'ok', index: indexStats(s) }))
+      .catch((e) => !cancelled && setStats({ status: 'error', message: errorMessage(e) }))
+    return () => {
+      cancelled = true
+    }
+  }, [statsReload])
 
   const active = useMemo(() => members.filter((m) => !excluded.has(m.id)), [members, excluded])
 
@@ -61,6 +84,16 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
     })
   }, [load, active, date, query, onlyAll, hideOut])
 
+  const statsIndex = stats.status === 'ok' ? stats.index : undefined
+  const groups = useMemo(
+    () => (load.status === 'ok' ? groupByTeam(rows, load.night.teams, statsIndex) : []),
+    [load, rows, statsIndex],
+  )
+
+  // Pendant une recherche, toutes les équipes qui ont un résultat sont dépliées.
+  const searching = query.trim() !== ''
+  const allOpen = groups.length > 0 && groups.every((g) => open.has(g.id))
+
   const toggle = (id: string) =>
     setExcluded((prev) => {
       const next = new Set(prev)
@@ -68,6 +101,16 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
       else next.add(id)
       return next
     })
+
+  const toggleTeam = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const toggleAllTeams = () => setOpen(allOpen ? new Set() : new Set(groups.map((g) => g.id)))
 
   // Un historique qui date de plus de 2 jours risque de fausser les disponibilités.
   const staleDays = (m: Member) => {
@@ -167,48 +210,109 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
         </section>
       )}
 
-      {load.status === 'ok' && members.length > 0 && (
+      {load.status === 'ok' && members.length > 0 && stats.status === 'loading' && (
+        <p className="center muted">Chargement des moyennes TTFL…</p>
+      )}
+      {load.status === 'ok' && members.length > 0 && stats.status === 'error' && (
+        <section className="card warn">
+          <h2>Moyennes TTFL indisponibles</h2>
+          <p>{stats.message}</p>
+          <p className="muted small">Les joueurs restent listés, par ordre alphabétique.</p>
+          <button className="btn" onClick={() => setStatsReload((n) => n + 1)}>
+            Réessayer
+          </button>
+        </section>
+      )}
+
+      {load.status === 'ok' && members.length > 0 && stats.status !== 'loading' && (
         <>
-          <p className="muted small">{rows.length} joueur{rows.length > 1 ? 's' : ''}</p>
-          <ul className="plain">
-            {rows.slice(0, limit).map((r) => {
-              const inj = r.candidate.injury ? injuryBadge(r.candidate.injury.status) : undefined
-              const blocked = active.filter((m) => r.perMember[m.id].state !== 'free')
-              return (
-                <li key={`${r.candidate.teamId}-${r.candidate.name}`} className="player">
-                  <div className="player-head">
-                    <div>
-                      <strong>{r.candidate.name}</strong>{' '}
-                      <span className="muted">
-                        {r.candidate.team}
-                        {r.candidate.position ? ` · ${r.candidate.position}` : ''}
-                      </span>
-                    </div>
-                    {inj && (
-                      <span className={`badge ${inj.cls}`} title={r.candidate.injury?.comment}>
-                        {inj.label}
-                      </span>
-                    )}
-                  </div>
-                  <div className="player-avail">
-                    <span className={`pill ${r.freeCount === r.total ? 'ok' : r.freeCount === 0 ? 'none' : 'some'}`}>
-                      {r.freeCount}/{r.total} dispo{r.freeCount > 1 ? 's' : ''}
-                    </span>
-                    {blocked.map((m) => (
-                      <span key={m.id} className="chip small">
-                        {m.name} · {lockLabel(r.perMember[m.id])}
-                      </span>
-                    ))}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-          {rows.length > limit && (
-            <button className="btn center-btn" onClick={() => setLimit((l) => l + PAGE)}>
-              Voir plus ({rows.length - limit})
-            </button>
+          <div className="listbar">
+            <p className="muted small">
+              {plural(rows.length, 'joueur', 'joueurs')} · {plural(groups.length, 'équipe', 'équipes')}
+            </p>
+            {!searching && groups.length > 1 && (
+              <button className="link" onClick={toggleAllTeams}>
+                {allOpen ? 'Tout replier' : 'Tout déplier'}
+              </button>
+            )}
+          </div>
+          {statsIndex && (
+            <p className="muted small">
+              Moyenne TTFL : points TTFL par match sur la saison régulière {statsIndex.season} (stats ESPN).
+            </p>
           )}
+
+          {groups.map((g) => {
+            const isOpen = searching || open.has(g.id)
+            return (
+              <section key={g.id} className="team">
+                <button
+                  type="button"
+                  className="team-head"
+                  aria-expanded={isOpen}
+                  onClick={() => !searching && toggleTeam(g.id)}
+                >
+                  {g.logo ? (
+                    <img className="team-logo" src={g.logo} alt="" width={32} height={32} loading="lazy" />
+                  ) : (
+                    <span className="team-logo ph" aria-hidden="true">
+                      {g.abbr}
+                    </span>
+                  )}
+                  <span className="team-name">{g.name}</span>
+                  <span className="muted small">{plural(g.rows.length, 'joueur', 'joueurs')}</span>
+                  <span className="chev" aria-hidden="true">
+                    ▾
+                  </span>
+                </button>
+
+                {isOpen && (
+                  <ul className="plain">
+                    {g.rows.map(({ row: r, stat }) => {
+                      const inj = r.candidate.injury ? injuryBadge(r.candidate.injury.status) : undefined
+                      const blocked = active.filter((m) => r.perMember[m.id].state !== 'free')
+                      return (
+                        <li key={`${r.candidate.teamId}-${r.candidate.name}`} className="player">
+                          <div className="player-head">
+                            <div className="player-id">
+                              <strong>{r.candidate.name}</strong>
+                              {r.candidate.position && <span className="muted"> · {r.candidate.position}</span>}{' '}
+                              {inj && (
+                                <span className={`badge ${inj.cls}`} title={r.candidate.injury?.comment}>
+                                  {inj.label}
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className="avg"
+                              title={
+                                stat
+                                  ? `Moyenne TTFL : ${avgFormat.format(stat.avg)} points par match, sur ${plural(stat.gp, 'match joué', 'matchs joués')} cette saison`
+                                  : 'Pas encore de match joué cette saison'
+                              }
+                            >
+                              <strong>{stat ? avgFormat.format(stat.avg) : '–'}</strong>
+                              <small>{stat ? plural(stat.gp, 'match', 'matchs') : 'moy. TTFL'}</small>
+                            </div>
+                          </div>
+                          <div className="player-avail">
+                            <span className={`pill ${r.freeCount === r.total ? 'ok' : r.freeCount === 0 ? 'none' : 'some'}`}>
+                              {r.freeCount}/{r.total} dispo{r.freeCount > 1 ? 's' : ''}
+                            </span>
+                            {blocked.map((m) => (
+                              <span key={m.id} className="chip small">
+                                {m.name} · {lockLabel(r.perMember[m.id])}
+                              </span>
+                            ))}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </section>
+            )
+          })}
         </>
       )}
     </>

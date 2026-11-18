@@ -390,6 +390,88 @@ kbd {
   align-items: flex-start;
   gap: 8px;
 }
+.player-id {
+  min-width: 0;
+}
+.avg {
+  flex: none;
+  text-align: right;
+  line-height: 1.15;
+}
+.avg strong {
+  display: block;
+  font-size: 1.15rem;
+}
+.avg small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+/* Une liste déroulante par équipe */
+.listbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.listbar p {
+  margin: 6px 0;
+}
+.team {
+  margin-bottom: 8px;
+}
+.team-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.team-head[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.team-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+/* Fond blanc : les logos sombres (Spurs, Nets…) restent lisibles en thème sombre. */
+.team-logo {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 2px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #fff;
+}
+.team-logo.ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #121a2b;
+}
+.chev {
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.team-head[aria-expanded='true'] .chev {
+  transform: rotate(180deg);
+}
+.team .plain {
+  margin-top: 8px;
+}
 .player-avail {
   display: flex;
   flex-wrap: wrap;
