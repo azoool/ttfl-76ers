@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { parisToday } from '../lib/dates'
 import {
+  addMembers as addMembersRemote,
   createTeam,
   fetchTeam,
   joinTeam,
@@ -117,6 +118,15 @@ export function useTeam() {
     [link, refresh],
   )
 
+  const addMembers = useCallback(
+    async (names: string[]) => {
+      if (!link) return
+      await addMembersRemote(link, names)
+      await refresh({ force: true })
+    },
+    [link, refresh],
+  )
+
   const leave = useCallback(
     async (deleteData: boolean) => {
       if (!link) return
@@ -146,6 +156,7 @@ export function useTeam() {
     join,
     preview: previewTeam,
     importPicks,
+    addMembers,
     leave,
     rotate,
   }
