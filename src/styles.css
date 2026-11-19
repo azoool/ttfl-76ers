@@ -391,7 +391,46 @@ kbd {
   gap: 8px;
 }
 .player-id {
+  flex: 1;
   min-width: 0;
+}
+/* Étoile des favoris : zone tactile de 40 px, sans bordure. */
+.star {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: -6px 0 -6px -8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.star.on {
+  color: var(--accent);
+}
+.team.fav {
+  margin-bottom: 12px;
+}
+.team-logo.star-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 1.1rem;
+}
+.fav-empty {
+  margin: 8px 4px;
+}
+.fav-benched {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
 }
 .avg {
   flex: none;

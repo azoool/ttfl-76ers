@@ -30,6 +30,9 @@ function byAverageThenName(a: RankedRow, b: RankedRow): number {
   return a.row.candidate.name.localeCompare(b.row.candidate.name, 'fr')
 }
 
+/** Moyenne TTFL de la saison décroissante, puis nom (les joueurs sans moyenne en dernier). */
+export const rankRows = (rows: RankedRow[]): RankedRow[] => [...rows].sort(byAverageThenName)
+
 /**
  * Regroupe les joueurs par équipe (équipes par ordre alphabétique du nom complet).
  * Dans chaque équipe : moyenne TTFL de la saison décroissante, puis nom.
@@ -51,6 +54,6 @@ export function groupByTeam(rows: AvailabilityRow[], teams: TeamRef[], stats?: S
   }
   return [...groups.values()]
     .filter((g) => g.rows.length > 0)
-    .map((g) => ({ ...g, rows: [...g.rows].sort(byAverageThenName) }))
+    .map((g) => ({ ...g, rows: rankRows(g.rows) }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
 }

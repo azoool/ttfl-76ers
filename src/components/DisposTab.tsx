@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { availabilityRows, type LockInfo, type Member } from '../lib/availability'
+import { availabilityRows, type Member } from '../lib/availability'
 import { addDays, daysBetween, formatDayFr, parisToday } from '../lib/dates'
 import { deckClosing } from '../lib/deck'
 import { fetchNight, fetchSeasonStats, type Night } from '../lib/espn'
+import {
+  benchedFavorites,
+  favoriteKey,
+  favoriteRows,
+  loadFavorites,
+  removeFavorite,
+  saveFavorites,
+  toggleFavorite,
+} from '../lib/favorites'
+import { plural } from '../lib/format'
 import { groupByTeam } from '../lib/groups'
 import { indexStats, type StatsIndex } from '../lib/seasonStats'
 import { playerKey } from '../lib/ttfl'
+import { PlayerRow } from './PlayerRow'
 
 type Load =
   | { status: 'loading' }
@@ -17,23 +28,7 @@ type StatsLoad =
   | { status: 'error'; message: string }
   | { status: 'ok'; index: StatsIndex }
 
-// `signDisplay: 'negative'` évite d'afficher « -0,0 » pour une moyenne à peine négative.
-const avgFormat = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'negative' })
-const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
-
-function injuryBadge(status: string): { label: string; cls: string } {
-  const s = status.toLowerCase()
-  if (s === 'out') return { label: 'Absent', cls: 'bad' }
-  if (s.includes('day')) return { label: 'Incertain', cls: 'warn' }
-  return { label: status, cls: 'muted' }
-}
-
-function lockLabel(info: LockInfo): string {
-  if (info.state === 'picked') return 'pick du jour'
-  if (info.daysLeft !== undefined) return `${info.daysLeft} j`
-  return 'réservé'
-}
 
 export function DisposTab({ members, goImport }: { members: Member[]; goImport: () => void }) {
   const today = parisToday()
@@ -47,6 +42,10 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
   const [stats, setStats] = useState<StatsLoad>({ status: 'loading' })
   const [statsReload, setStatsReload] = useState(0)
   const [open, setOpen] = useState<Set<string>>(() => new Set())
+  const [favorites, setFavorites] = useState(loadFavorites)
+  const [favOpen, setFavOpen] = useState(true)
+
+  useEffect(() => saveFavorites(favorites), [favorites])
 
   useEffect(() => {
     let cancelled = false
@@ -90,6 +89,18 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
     [load, rows, statsIndex],
   )
 
+  const favKeys = useMemo(() => new Set(favorites.map((f) => f.key)), [favorites])
+  // Favoris qui jouent ce jour-là (filtres compris), et favoris sans match ce jour-là.
+  const favRows = useMemo(() => favoriteRows(rows, favKeys, statsIndex), [rows, favKeys, statsIndex])
+  const benched = useMemo(
+    () => (load.status === 'ok' ? benchedFavorites(favorites, load.night.candidates) : []),
+    [load, favorites],
+  )
+  const teamAbbr = useMemo(
+    () => new Map(load.status === 'ok' ? load.night.teams.map((t) => [t.id, t.abbr] as const) : []),
+    [load],
+  )
+
   // Pendant une recherche, toutes les équipes qui ont un résultat sont dépliées.
   const searching = query.trim() !== ''
   const allOpen = groups.length > 0 && groups.every((g) => open.has(g.id))
@@ -111,6 +122,8 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
     })
 
   const toggleAllTeams = () => setOpen(allOpen ? new Set() : new Set(groups.map((g) => g.id)))
+
+  const toggleFav = (c: Parameters<typeof toggleFavorite>[1]) => setFavorites((list) => toggleFavorite(list, c))
 
   // Un historique qui date de plus de 2 jours risque de fausser les disponibilités.
   const staleDays = (m: Member) => {
@@ -242,6 +255,60 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
             </p>
           )}
 
+          <section className="team fav">
+            <button type="button" className="team-head" aria-expanded={favOpen} onClick={() => setFavOpen((o) => !o)}>
+              <span className="team-logo star-badge" aria-hidden="true">
+                ★
+              </span>
+              <span className="team-name">Favoris</span>
+              <span className="muted small">{plural(favRows.length, 'joueur', 'joueurs')}</span>
+              <span className="chev" aria-hidden="true">
+                ▾
+              </span>
+            </button>
+
+            {favOpen && (
+              <>
+                {favRows.length > 0 ? (
+                  <ul className="plain">
+                    {favRows.map((ranked) => (
+                      <PlayerRow
+                        key={`${ranked.row.candidate.teamId}-${ranked.row.candidate.name}`}
+                        ranked={ranked}
+                        active={active}
+                        favorite
+                        onToggleFavorite={() => toggleFav(ranked.row.candidate)}
+                        teamLabel={teamAbbr.get(ranked.row.candidate.teamId ?? '') ?? ranked.row.candidate.team}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted small fav-empty">
+                    {favorites.length === 0
+                      ? 'Touche l’étoile ☆ à côté d’un joueur, dans les équipes ci-dessous, pour le retrouver ici.'
+                      : 'Aucun de tes favoris ne correspond aux filtres ou ne joue ce jour-là.'}
+                  </p>
+                )}
+                {benched.length > 0 && (
+                  <div className="fav-benched">
+                    <span className="muted small">Pas de match ce jour-là :</span>
+                    {benched.map((f) => (
+                      <button
+                        key={f.key}
+                        type="button"
+                        className="chip small"
+                        aria-label={`Retirer ${f.name} des favoris`}
+                        onClick={() => setFavorites((list) => removeFavorite(list, f.key))}
+                      >
+                        {f.name} ✕
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
           {groups.map((g) => {
             const isOpen = searching || open.has(g.id)
             return (
@@ -268,46 +335,15 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
 
                 {isOpen && (
                   <ul className="plain">
-                    {g.rows.map(({ row: r, stat }) => {
-                      const inj = r.candidate.injury ? injuryBadge(r.candidate.injury.status) : undefined
-                      const blocked = active.filter((m) => r.perMember[m.id].state !== 'free')
-                      return (
-                        <li key={`${r.candidate.teamId}-${r.candidate.name}`} className="player">
-                          <div className="player-head">
-                            <div className="player-id">
-                              <strong>{r.candidate.name}</strong>
-                              {r.candidate.position && <span className="muted"> · {r.candidate.position}</span>}{' '}
-                              {inj && (
-                                <span className={`badge ${inj.cls}`} title={r.candidate.injury?.comment}>
-                                  {inj.label}
-                                </span>
-                              )}
-                            </div>
-                            <div
-                              className="avg"
-                              title={
-                                stat
-                                  ? `Moyenne TTFL : ${avgFormat.format(stat.avg)} points par match, sur ${plural(stat.gp, 'match joué', 'matchs joués')} cette saison`
-                                  : 'Pas encore de match joué cette saison'
-                              }
-                            >
-                              <strong>{stat ? avgFormat.format(stat.avg) : '–'}</strong>
-                              <small>{stat ? plural(stat.gp, 'match', 'matchs') : 'moy. TTFL'}</small>
-                            </div>
-                          </div>
-                          <div className="player-avail">
-                            <span className={`pill ${r.freeCount === r.total ? 'ok' : r.freeCount === 0 ? 'none' : 'some'}`}>
-                              {r.freeCount}/{r.total} dispo{r.freeCount > 1 ? 's' : ''}
-                            </span>
-                            {blocked.map((m) => (
-                              <span key={m.id} className="chip small">
-                                {m.name} · {lockLabel(r.perMember[m.id])}
-                              </span>
-                            ))}
-                          </div>
-                        </li>
-                      )
-                    })}
+                    {g.rows.map((ranked) => (
+                      <PlayerRow
+                        key={`${ranked.row.candidate.teamId}-${ranked.row.candidate.name}`}
+                        ranked={ranked}
+                        active={active}
+                        favorite={favKeys.has(favoriteKey(ranked.row.candidate))}
+                        onToggleFavorite={() => toggleFav(ranked.row.candidate)}
+                      />
+                    ))}
                   </ul>
                 )}
               </section>
