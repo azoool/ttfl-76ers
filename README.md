@@ -54,7 +54,9 @@ publie le dossier `dist/` sur GitHub Pages à chaque push sur `main` :
 
 ## Règles TTFL prises en compte
 
-- Un joueur pické est indisponible pour les 30 jours suivants (`LOCK_DAYS` dans `src/lib/availability.ts`).
+- Un joueur pické redevient disponible 30 jours après son pick, donc bloqué les 29 jours suivants (`LOCK_DAYS` dans
+  `src/lib/availability.ts`). TTFL affiche « bloqué N jours » avec N = 30 − jours écoulés ; vérifié sur le deck de TTFL
+  le 19/11/2026 pour 7 joueurs bloqués et pour Wembanyama (pické le 20/10, disponible le 19/11).
 - Un pick préparé à l'avance bloque aussi le joueur dans la fenêtre de 30 jours qui le précède.
 - Score = Pts + Reb + Ast + Stl + Blk + Lancers francs réussis + Tirs réussis + 3 pts réussis − Malus.
 - Date du deck = date à Paris ; fermeture à 00:00 ou au coup d'envoi du premier match s'il a lieu avant minuit.

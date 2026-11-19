@@ -2,10 +2,15 @@ import { addDays, daysBetween } from './dates'
 import { playerKey } from './ttfl'
 
 /**
- * Règle TTFL : un joueur pické est indisponible pour les 30 jours suivants.
- * (Pris le 1er du mois, il est de nouveau disponible le 32.)
- * Hypothèse à confirmer sur le deck : les picks préparés à l'avance bloquent aussi le joueur
- * avant leur date, dans la même fenêtre de 30 jours.
+ * Règle TTFL : un joueur pické redevient disponible 30 jours après son pick.
+ * Il est donc bloqué les 29 jours suivants, et TTFL affiche « bloqué N jours » avec N = 30 − (jours écoulés).
+ * (Pris le 1er du mois, il est de nouveau disponible le 31.)
+ *
+ * Vérifié le 2026-11-19 sur le deck de TTFL : 7 joueurs bloqués dont le nombre de jours affiché
+ * correspond exactement à cette formule, et Victor Wembanyama, pické le 20 octobre, disponible le 19 novembre.
+ *
+ * Hypothèse restant à confirmer : les picks préparés à l'avance bloquent aussi le joueur avant leur date,
+ * dans la même fenêtre.
  */
 export const LOCK_DAYS = 30
 
@@ -49,15 +54,15 @@ export function lockInfo(
     if (playerKey(p.player) !== key) continue
     const gap = daysBetween(p.date, target) // > 0 : pick passé
     if (gap === 0) return { state: 'picked', pickDate: p.date }
-    if (gap > 0 && gap <= lockDays) {
+    if (gap > 0 && gap < lockDays) {
       if (!latestPast || p.date > latestPast) latestPast = p.date
-    } else if (gap < 0 && -gap <= lockDays) {
+    } else if (gap < 0 && -gap < lockDays) {
       if (!nearestFuture || p.date < nearestFuture) nearestFuture = p.date
     }
   }
 
   if (latestPast) {
-    const freeOn = addDays(latestPast, lockDays + 1)
+    const freeOn = addDays(latestPast, lockDays)
     return { state: 'locked', freeOn, daysLeft: daysBetween(target, freeOn), pickDate: latestPast }
   }
   if (nearestFuture) {
