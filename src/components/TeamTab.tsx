@@ -2,16 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { Member } from '../lib/availability'
 import { formatDayFr } from '../lib/dates'
 import { syncConfigured } from '../lib/supabaseConfig'
-import {
-  classifyPreviewError,
-  friendlyError,
-  inviteUrl,
-  MAX_MEMBERS,
-  MAX_NAME,
-  normalizeCode,
-  parseNames,
-  splitPreviewMembers,
-} from '../lib/team'
+import { classifyPreviewError, friendlyError, inviteUrl, normalizeCode, splitPreviewMembers } from '../lib/team'
 import type { TeamApi } from '../hooks/useTeam'
 
 interface Props {
@@ -278,40 +269,6 @@ function InTeam({ team }: { team: TeamApi }) {
   const url = inviteUrl(`${location.origin}${location.pathname}`, code)
   const canShare = typeof navigator.share === 'function'
 
-  // Ajout de coéquipiers : ils apparaissent ensuite dans la liste « Qui es-tu ? » du lien d'invitation.
-  const [names, setNames] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [addMsg, setAddMsg] = useState<{ ok: boolean; text: string }>()
-  const known = new Set(team.members.map((m) => m.name.toLowerCase()))
-  const typed = parseNames(names)
-  const toAdd = typed.filter((n) => !known.has(n.toLowerCase()))
-  const tooLong = typed.find((n) => n.length > MAX_NAME)
-  const addInfo =
-    typed.length === 0
-      ? undefined
-      : tooLong
-        ? `« ${tooLong.slice(0, 20)}… » dépasse ${MAX_NAME} caractères.`
-        : team.members.length + toAdd.length > MAX_MEMBERS
-          ? `Une équipe compte au plus ${MAX_MEMBERS} membres (${team.members.length} aujourd’hui).`
-          : toAdd.length === 0
-            ? 'Ils sont déjà tous dans l’équipe.'
-            : `${toAdd.length} à ajouter${typed.length > toAdd.length ? `, ${typed.length - toAdd.length} déjà dans l’équipe` : ''}.`
-  const canAdd = toAdd.length > 0 && !tooLong && team.members.length + toAdd.length <= MAX_MEMBERS && !adding
-
-  const addMembers = async () => {
-    setAdding(true)
-    setAddMsg(undefined)
-    try {
-      await team.addMembers(toAdd)
-      setAddMsg({ ok: true, text: `${toAdd.length} coéquipier${toAdd.length > 1 ? 's ajoutés' : ' ajouté'}.` })
-      setNames('')
-    } catch (e) {
-      setAddMsg({ ok: false, text: friendlyError(e) })
-    } finally {
-      setAdding(false)
-    }
-  }
-
   const run = async (okText: string, action: () => Promise<void>) => {
     setBusy(true)
     setMsg(undefined)
@@ -371,40 +328,12 @@ function InTeam({ team }: { team: TeamApi }) {
         </ul>
       </section>
 
-      <details className="card">
-        <summary>
-          <strong>Ajouter des coéquipiers</strong>
-        </summary>
-        <p className="muted small">
-          Un pseudo TTFL par ligne. Ils apparaissent dans la liste « Qui es-tu ? » du lien d’invitation et chacun
-          reprend sa place en la choisissant.
-        </p>
-        <textarea
-          value={names}
-          onChange={(e) => {
-            setNames(e.target.value)
-            setAddMsg(undefined)
-          }}
-          rows={5}
-          placeholder={'Knicko\nHugues98\nJMdu31'}
-          aria-label="Pseudos des coéquipiers à ajouter"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        {addInfo && <p className="muted small">{addInfo}</p>}
-        {addMsg && <div className={`notice ${addMsg.ok ? 'ok' : 'bad'}`}>{addMsg.text}</div>}
-        <button className="btn primary" disabled={!canAdd} onClick={() => void addMembers()}>
-          {adding ? 'Ajout…' : toAdd.length > 1 ? `Ajouter ${toAdd.length} coéquipiers` : 'Ajouter'}
-        </button>
-      </details>
-
       <section className="card">
         <h2>Inviter un coéquipier</h2>
         <p>Il ouvre le lien, choisit son nom dans la liste des membres, et il est dans l’équipe.</p>
         <p className="muted small">
-          Un coéquipier absent de la liste peut saisir son pseudo : ajoute-le plutôt ci-dessus pour éviter les fautes de
-          frappe.
+          Pour qu’un coéquipier apparaisse dans la liste, importe d’abord son historique (onglet Importer). Sinon, il saisit
+          simplement son pseudo.
         </p>
         <div className="code">{code}</div>
         <div className="row-actions">

@@ -192,18 +192,6 @@ export async function pushPicks(link: TeamLink, memberName: string, picks: PushP
   }
 }
 
-/**
- * Ajoute des coéquipiers (sans picks) à l'équipe, pour qu'ils figurent dans la liste « Qui es-tu ? » à leur arrivée.
- * Un pseudo déjà présent (casse ignorée) est laissé tel quel. Un par un : l'équipe est limitée à 12 membres.
- */
-export async function addMembers(link: TeamLink, names: string[]): Promise<void> {
-  const sb = await ready()
-  for (const name of names) {
-    const { error } = await sb.rpc('add_member', { p_team: link.teamId, p_name: name })
-    if (error) throw error
-  }
-}
-
 export async function leaveTeam(link: TeamLink, deleteData: boolean): Promise<void> {
   const sb = await ready()
   const { error } = await sb.rpc('leave_team', { p_team: link.teamId, p_delete: deleteData })

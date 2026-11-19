@@ -77,27 +77,6 @@ export function buildMembers(members: MemberRow[], picks: PickRow[], myMemberId:
     .sort((a, b) => Number(b.me) - Number(a.me) || a.name.localeCompare(b.name, 'fr'))
 }
 
-/** Limites imposées par la base (voir supabase/schema.sql). */
-export const MAX_MEMBERS = 12
-export const MAX_NAME = 40
-
-/**
- * Pseudos saisis en vrac (un par ligne, ou séparés par des virgules ou des points-virgules) :
- * nettoyés, sans doublon (la casse est ignorée), dans l'ordre de saisie.
- */
-export function parseNames(text: string): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const raw of text.split(/[\n\r,;]+/)) {
-    const name = raw.trim().replace(/\s+/g, ' ')
-    const key = name.toLowerCase()
-    if (!name || seen.has(key)) continue
-    seen.add(key)
-    out.push(name)
-  }
-  return out
-}
-
 /** Noms des membres à proposer dans la liste « Qui es-tu ? » : d'abord ceux pas encore inscrits, puis ceux déjà liés à un appareil. */
 export function splitPreviewMembers(members: { name: string; claimed: boolean }[]): { fresh: string[]; claimed: string[] } {
   const names = (claimed: boolean) =>

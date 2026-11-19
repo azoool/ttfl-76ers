@@ -22,8 +22,7 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   aide si le lien est ouvert dans WhatsApp/Instagram), QR code et bouton Partager.
 
 - **Équipe** : créer ou rejoindre une équipe avec un code d'invitation (lien partageable `#/join/CODE` : on choisit son
-  nom dans la liste des membres, ou on saisit son pseudo si on n'y figure pas ; « Ajouter des coéquipiers » enregistre
-  d'avance les pseudos de toute l'équipe, un par ligne, pour qu'ils figurent dans cette liste), voir les membres,
+  nom dans la liste des membres, ou on saisit son pseudo si on n'y figure pas), voir les membres,
   partager l'historique de chacun avec les téléphones de l'équipe (Supabase, voir [supabase/README.md](supabase/README.md)).
   Sans Supabase configuré, les données restent sur l'appareil (localStorage).
 

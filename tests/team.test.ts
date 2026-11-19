@@ -5,7 +5,6 @@ import {
   friendlyError,
   inviteUrl,
   normalizeCode,
-  parseNames,
   parseRoute,
   splitPreviewMembers,
 } from '../src/lib/team'
@@ -111,21 +110,5 @@ describe('classifyPreviewError', () => {
   it('classe le reste (réseau, serveur…) à part', () => {
     expect(classifyPreviewError(new TypeError('Failed to fetch'))).toBe('other')
     expect(classifyPreviewError({ code: '500', message: 'boom' })).toBe('other')
-  })
-})
-
-describe('parseNames', () => {
-  it('sépare les pseudos par ligne, virgule ou point-virgule et nettoie les espaces', () => {
-    expect(parseNames('Alice\n  Bob  \r\nCarl, Dana;Eve')).toEqual(['Alice', 'Bob', 'Carl', 'Dana', 'Eve'])
-    expect(parseNames('Jean  Pierre')).toEqual(['Jean Pierre'])
-  })
-
-  it('ignore les lignes vides et les doublons (casse ignorée), en gardant la première écriture', () => {
-    expect(parseNames('\n\nKnicko\nknicko\n  \nKNICKO ,Bob')).toEqual(['Knicko', 'Bob'])
-    expect(parseNames('')).toEqual([])
-  })
-
-  it('garde les chiffres et la casse des pseudos TTFL', () => {
-    expect(parseNames('Anfieldsharks1403\nHugues98\nJMdu31')).toEqual(['Anfieldsharks1403', 'Hugues98', 'JMdu31'])
   })
 })
