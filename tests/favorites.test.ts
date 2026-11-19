@@ -6,6 +6,7 @@ import {
   favoriteRows,
   parseFavorites,
   removeFavorite,
+  splitByAvailability,
   toggleFavorite,
   type Favorite,
 } from '../src/lib/favorites'
@@ -96,5 +97,30 @@ describe('benchedFavorites', () => {
     ]
     const playing = [{ id: '1', name: 'Joel Embiid', team: 'PHI' }]
     expect(benchedFavorites(favorites, playing)).toEqual([{ key: 'id:7', name: 'Nikola Jokic' }])
+  })
+})
+
+describe('splitByAvailability', () => {
+  const ranked = (name: string, freeCount: number, total: number) => ({
+    row: { candidate: { name, team: 'PHI' }, perMember: {}, freeCount, total } as AvailabilityRow,
+  })
+
+  it('sépare les joueurs libres pour tous les membres comptés des autres, en gardant l’ordre', () => {
+    const rows = [ranked('A', 1, 1), ranked('B', 0, 1), ranked('C', 1, 1), ranked('D', 0, 1)]
+    const { free, blocked } = splitByAvailability(rows)
+    expect(free.map((r) => r.row.candidate.name)).toEqual(['A', 'C'])
+    expect(blocked.map((r) => r.row.candidate.name)).toEqual(['B', 'D'])
+  })
+
+  it('avec plusieurs membres comptés, il faut qu’ils soient tous libres', () => {
+    const { free, blocked } = splitByAvailability([ranked('A', 2, 2), ranked('B', 1, 2), ranked('C', 0, 2)])
+    expect(free.map((r) => r.row.candidate.name)).toEqual(['A'])
+    expect(blocked.map((r) => r.row.candidate.name)).toEqual(['B', 'C'])
+  })
+
+  it('sans membre compté, personne n’est bloqué', () => {
+    const { free, blocked } = splitByAvailability([ranked('A', 0, 0), ranked('B', 0, 0)])
+    expect(free).toHaveLength(2)
+    expect(blocked).toEqual([])
   })
 })

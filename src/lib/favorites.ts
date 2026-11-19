@@ -50,6 +50,17 @@ export function favoriteRows(rows: AvailabilityRow[], keys: ReadonlySet<string>,
   )
 }
 
+/**
+ * Sépare des lignes déjà classées entre les joueurs disponibles pour tous les membres comptés et les autres
+ * (le classement est conservé dans chaque groupe). Sans membre compté, rien n'est bloqué.
+ */
+export function splitByAvailability(rows: RankedRow[]): { free: RankedRow[]; blocked: RankedRow[] } {
+  const free: RankedRow[] = []
+  const blocked: RankedRow[] = []
+  for (const r of rows) (r.row.total === 0 || r.row.freeCount === r.row.total ? free : blocked).push(r)
+  return { free, blocked }
+}
+
 /** Favoris qui n'ont pas de match ce jour-là (aucun joueur correspondant parmi les équipes qui jouent). */
 export function benchedFavorites(favorites: Favorite[], playing: Candidate[]): Favorite[] {
   const playingKeys = new Set(playing.map(favoriteKey))

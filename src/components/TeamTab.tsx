@@ -331,10 +331,7 @@ function InTeam({ team }: { team: TeamApi }) {
       <section className="card">
         <h2>Inviter un coéquipier</h2>
         <p>Il ouvre le lien, choisit son nom dans la liste des membres, et il est dans l’équipe.</p>
-        <p className="muted small">
-          Pour qu’un coéquipier apparaisse dans la liste, importe d’abord son historique (onglet Importer). Sinon, il saisit
-          simplement son pseudo.
-        </p>
+        <p className="muted small">S’il n’est pas dans la liste, il peut saisir son pseudo.</p>
         <div className="code">{code}</div>
         <div className="row-actions">
           {canShare && (

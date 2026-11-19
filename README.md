@@ -17,6 +17,10 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   **Favoris** : une étoile ☆ sur chaque joueur l'ajoute à la liste déroulante « Favoris », en haut de la page, classée
   comme les équipes (moyenne TTFL décroissante puis nom). Les favoris qui ne jouent pas ce jour-là sont rappelés dessous
   (pastille ✕ pour les retirer). Ils sont enregistrés sur l'appareil (localStorage), pas partagés avec l'équipe.
+  Dans « Favoris », les joueurs sont séparés en **disponibles** et **indisponibles** pour les membres comptés.
+  **Profil** : dans une équipe, seul ton propre membre est compté par défaut (tu vois tes disponibilités, pas celles de
+  tout le monde) ; les pastilles de membres, « Moi seul » et « Toute l'équipe » changent ce choix, qui est mémorisé sur
+  l'appareil.
 - **Importer** : on colle le tableau `?tpl=historique` de TTFL ; le parseur reconnaît chaque pick et vérifie le score avec la formule TTFL.
 - **Installer** : parcours adapté à l'appareil (bouton d'installation Android, guide en 3 étapes sur iPhone,
   aide si le lien est ouvert dans WhatsApp/Instagram), QR code et bouton Partager.

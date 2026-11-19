@@ -42,6 +42,9 @@ export default function App() {
   const inTeam = team.link !== null
   const members: Member[] = inTeam ? team.members : localMembers
   const myName = team.members.find((m) => m.me)?.name
+  // « Profil » : le membre de l'équipe qui correspond à cet appareil, et la clé où mémoriser son choix de membres comptés.
+  const meId = inTeam ? team.members.find((m) => m.me)?.id : undefined
+  const countedScope = team.link ? `team:${team.link.teamId}:${team.link.memberId}` : 'local'
 
   const { importPicks } = team
   const onImport = useCallback(
@@ -102,7 +105,7 @@ export default function App() {
                 {team.error && <span className="syncbar-error"> — {team.error}</span>}
               </p>
             )}
-            <DisposTab members={members} goImport={() => go('import')} />
+            <DisposTab members={members} goImport={() => go('import')} meId={meId} scope={countedScope} />
           </>
         )}
         {tab === 'import' && (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { availabilityRows, type Member } from '../lib/availability'
+import { loadCounted, resolveCounted, saveCounted } from '../lib/counted'
 import { addDays, daysBetween, formatDayFr, parisToday } from '../lib/dates'
 import { deckClosing } from '../lib/deck'
 import { fetchNight, fetchSeasonStats, type Night } from '../lib/espn'
@@ -10,10 +11,11 @@ import {
   loadFavorites,
   removeFavorite,
   saveFavorites,
+  splitByAvailability,
   toggleFavorite,
 } from '../lib/favorites'
 import { plural } from '../lib/format'
-import { groupByTeam } from '../lib/groups'
+import { groupByTeam, type RankedRow } from '../lib/groups'
 import { indexStats, type StatsIndex } from '../lib/seasonStats'
 import { playerKey } from '../lib/ttfl'
 import { PlayerRow } from './PlayerRow'
@@ -30,12 +32,21 @@ type StatsLoad =
 
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-export function DisposTab({ members, goImport }: { members: Member[]; goImport: () => void }) {
+interface DisposProps {
+  members: Member[]
+  goImport: () => void
+  /** membre de l'équipe qui correspond à la personne qui utilise l'appareil (son « profil ») */
+  meId?: string
+  /** clé de mémorisation du choix des membres comptés : équipe + identité sur l'appareil, ou « local » */
+  scope: string
+}
+
+export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
   const today = parisToday()
   const [date, setDate] = useState(today)
   const [load, setLoad] = useState<Load>({ status: 'loading' })
   const [reload, setReload] = useState(0)
-  const [excluded, setExcluded] = useState<Set<string>>(() => new Set())
+  const [stored, setStored] = useState<string[] | undefined>(() => loadCounted(scope))
   const [query, setQuery] = useState('')
   const [onlyAll, setOnlyAll] = useState(false)
   const [hideOut, setHideOut] = useState(true)
@@ -70,7 +81,17 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
     }
   }, [statsReload])
 
-  const active = useMemo(() => members.filter((m) => !excluded.has(m.id)), [members, excluded])
+  // Profil : par défaut, seuls mes propres picks comptent ; le choix fait ensuite est mémorisé sur l'appareil.
+  useEffect(() => setStored(loadCounted(scope)), [scope])
+  const counted = useMemo(
+    () => resolveCounted(members.map((m) => ({ id: m.id, me: m.id === meId })), stored),
+    [members, meId, stored],
+  )
+  const active = useMemo(() => members.filter((m) => counted.has(m.id)), [members, counted])
+  const setCounted = (ids: string[]) => {
+    setStored(ids)
+    saveCounted(scope, ids)
+  }
 
   const rows = useMemo(() => {
     if (load.status !== 'ok') return []
@@ -100,18 +121,30 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
     () => new Map(load.status === 'ok' ? load.night.teams.map((t) => [t.id, t.abbr] as const) : []),
     [load],
   )
+  // Favoris disponibles / indisponibles pour les membres comptés (par défaut : moi).
+  const { free: favFree, blocked: favBlocked } = useMemo(() => splitByAvailability(favRows), [favRows])
+  const favList = (list: RankedRow[]) => (
+    <ul className="plain">
+      {list.map((ranked) => (
+        <PlayerRow
+          key={`${ranked.row.candidate.teamId}-${ranked.row.candidate.name}`}
+          ranked={ranked}
+          active={active}
+          favorite
+          onToggleFavorite={() => toggleFav(ranked.row.candidate)}
+          teamLabel={teamAbbr.get(ranked.row.candidate.teamId ?? '') ?? ranked.row.candidate.team}
+        />
+      ))}
+    </ul>
+  )
 
   // Pendant une recherche, toutes les équipes qui ont un résultat sont dépliées.
   const searching = query.trim() !== ''
   const allOpen = groups.length > 0 && groups.every((g) => open.has(g.id))
 
-  const toggle = (id: string) =>
-    setExcluded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const toggle = (id: string) => setCounted(counted.has(id) ? [...counted].filter((x) => x !== id) : [...counted, id])
+  const countAll = () => setCounted(members.map((m) => m.id))
+  const countOnlyMe = () => meId && setCounted([meId])
 
   const toggleTeam = (id: string) =>
     setOpen((prev) => {
@@ -173,7 +206,7 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
           <div className="chips" role="group" aria-label="Membres comptés">
             {members.map((m) => {
               const stale = staleDays(m)
-              const off = excluded.has(m.id)
+              const off = !counted.has(m.id)
               return (
                 <button
                   key={m.id}
@@ -183,12 +216,25 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
                   title={m.picks[0] ? `Dernier pick connu : ${m.picks[0].date}` : 'Aucun pick'}
                 >
                   {m.name}
+                  {m.id === meId && <span className="chip-me"> · toi</span>}
                   {stale !== undefined && stale > 2 && <span aria-label="historique à mettre à jour"> ⚠️</span>}
                 </button>
               )
             })}
           </div>
-          {members.some((m) => (staleDays(m) ?? 99) > 2) && (
+          {members.length > 1 && (
+            <div className="chips-actions">
+              {meId && (
+                <button className="link" onClick={countOnlyMe}>
+                  Moi seul
+                </button>
+              )}
+              <button className="link" onClick={countAll}>
+                Toute l’équipe
+              </button>
+            </div>
+          )}
+          {active.some((m) => (staleDays(m) ?? 99) > 2) && (
             <p className="muted small">⚠️ L’historique de ce membre a plus de 2 jours : ses disponibilités sont peut-être inexactes.</p>
           )}
 
@@ -261,7 +307,11 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
                 ★
               </span>
               <span className="team-name">Favoris</span>
-              <span className="muted small">{plural(favRows.length, 'joueur', 'joueurs')}</span>
+              <span className="muted small">
+                {active.length > 0
+                  ? `${favFree.length} dispo · ${favBlocked.length} indispo`
+                  : plural(favRows.length, 'joueur', 'joueurs')}
+              </span>
               <span className="chev" aria-hidden="true">
                 ▾
               </span>
@@ -269,25 +319,32 @@ export function DisposTab({ members, goImport }: { members: Member[]; goImport: 
 
             {favOpen && (
               <>
-                {favRows.length > 0 ? (
-                  <ul className="plain">
-                    {favRows.map((ranked) => (
-                      <PlayerRow
-                        key={`${ranked.row.candidate.teamId}-${ranked.row.candidate.name}`}
-                        ranked={ranked}
-                        active={active}
-                        favorite
-                        onToggleFavorite={() => toggleFav(ranked.row.candidate)}
-                        teamLabel={teamAbbr.get(ranked.row.candidate.teamId ?? '') ?? ranked.row.candidate.team}
-                      />
-                    ))}
-                  </ul>
-                ) : (
+                {favRows.length === 0 ? (
                   <p className="muted small fav-empty">
                     {favorites.length === 0
                       ? 'Touche l’étoile ☆ à côté d’un joueur, dans les équipes ci-dessous, pour le retrouver ici.'
                       : 'Aucun de tes favoris ne correspond aux filtres ou ne joue ce jour-là.'}
                   </p>
+                ) : active.length === 0 ? (
+                  favList(favRows)
+                ) : (
+                  <>
+                    <h3 className="fav-sub ok">Disponibles · {favFree.length}</h3>
+                    {favFree.length > 0 ? (
+                      favList(favFree)
+                    ) : (
+                      <p className="muted small fav-empty">Aucun de tes favoris n’est disponible ce jour-là.</p>
+                    )}
+                    <h3 className="fav-sub bad">Indisponibles · {favBlocked.length}</h3>
+                    {favBlocked.length > 0 ? (
+                      favList(favBlocked)
+                    ) : (
+                      <p className="muted small fav-empty">Aucun de tes favoris n’est indisponible.</p>
+                    )}
+                    {active.length > 1 && (
+                      <p className="muted small">Disponible = libre pour les {active.length} membres comptés.</p>
+                    )}
+                  </>
                 )}
                 {benched.length > 0 && (
                   <div className="fav-benched">

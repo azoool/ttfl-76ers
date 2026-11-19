@@ -373,6 +373,29 @@ select {
   opacity: 0.55;
   text-decoration: line-through;
 }
+.chip-me {
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+.chips-actions {
+  display: flex;
+  gap: 14px;
+  margin: 2px 2px 6px;
+}
+.fav-sub {
+  margin: 12px 4px 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fav-sub.ok {
+  color: var(--ok);
+}
+.fav-sub.bad {
+  color: var(--bad);
+}
 .filters {
   display: grid;
   gap: 6px;
