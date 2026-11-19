@@ -186,6 +186,7 @@ a {
 input[type='text'],
 input[type='search'],
 input:not([type]),
+select,
 textarea {
   width: 100%;
   font: inherit;
@@ -232,6 +233,13 @@ kbd {
 .notice.bad {
   background: var(--bad-bg);
   color: var(--bad);
+}
+.notice.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+select {
+  min-height: 44px;
 }
 
 /* Étapes d'installation */

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { Member } from '../lib/availability'
 import { formatDayFr } from '../lib/dates'
 import { syncConfigured } from '../lib/supabaseConfig'
-import { friendlyError, inviteUrl, normalizeCode } from '../lib/team'
+import { classifyPreviewError, friendlyError, inviteUrl, normalizeCode, splitPreviewMembers } from '../lib/team'
 import type { TeamApi } from '../hooks/useTeam'
 
 interface Props {
@@ -28,11 +28,30 @@ export function TeamTab({ team, joinCode, localMembers }: Props) {
   return team.link ? <InTeam team={team} /> : <NoTeam team={team} joinCode={joinCode} localMembers={localMembers} />
 }
 
+/** Valeur de la liste « Qui es-tu ? » pour quelqu'un qui n'y figure pas. */
+const OTHER = '__autre__'
+
+type PreviewState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'list'; teamName: string; fresh: string[]; claimed: string[] }
+  /** pas de liste (fonction absente, réseau…) : on saisit son pseudo à la main */
+  | { status: 'manual'; warning?: string }
+  | { status: 'unknown' }
+
 function NoTeam({ team, joinCode, localMembers }: Props) {
+  const { preview: loadPreview } = team
+  // Si un seul historique a été importé sur cet appareil, c'est très probablement celui de la personne.
+  const single = localMembers.length === 1 ? localMembers[0].name : ''
+
   const [code, setCode] = useState(joinCode ?? '')
+  const [preview, setPreview] = useState<PreviewState>({ status: 'idle' })
+  const [choice, setChoice] = useState('') // nom choisi dans la liste, ou OTHER
+  const [typed, setTyped] = useState(single) // pseudo saisi à la main (pas de liste, ou « pas dans la liste »)
+  const [consentJoin, setConsentJoin] = useState(false)
   const [teamName, setTeamName] = useState('')
-  const [pseudo, setPseudo] = useState(localMembers.length === 1 ? localMembers[0].name : '')
-  const [consent, setConsent] = useState(false)
+  const [createPseudo, setCreatePseudo] = useState(single)
+  const [consentCreate, setConsentCreate] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | undefined>(team.error)
 
@@ -40,7 +59,44 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
     if (joinCode) setCode(joinCode)
   }, [joinCode])
 
-  const mine = () => localMembers.find((m) => m.name.toLowerCase() === pseudo.trim().toLowerCase())?.picks
+  // Dès que le code est complet, on cherche l'équipe pour proposer la liste de ses membres.
+  useEffect(() => {
+    setChoice('')
+    if (code.length !== 8) {
+      setPreview({ status: 'idle' })
+      return
+    }
+    let cancelled = false
+    setPreview({ status: 'loading' })
+    loadPreview(code)
+      .then((p) => {
+        if (cancelled) return
+        const { fresh, claimed } = splitPreviewMembers(p.members)
+        if (fresh.length + claimed.length === 0) {
+          setPreview({ status: 'manual' })
+          return
+        }
+        setPreview({ status: 'list', teamName: p.teamName, fresh, claimed })
+        const mine = [...fresh, ...claimed].find((n) => single && n.toLowerCase() === single.toLowerCase())
+        if (mine) setChoice(mine)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        const kind = classifyPreviewError(e)
+        if (kind === 'unknown-code') setPreview({ status: 'unknown' })
+        else {
+          setPreview({
+            status: 'manual',
+            warning: kind === 'other' ? `Impossible de charger la liste des membres (${friendlyError(e)})` : undefined,
+          })
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [code, loadPreview, single])
+
+  const localPicks = (pseudo: string) => localMembers.find((m) => m.name.toLowerCase() === pseudo.toLowerCase())?.picks
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -54,36 +110,46 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
     }
   }
 
+  const joinPseudo = (preview.status === 'list' && choice !== OTHER ? choice : typed).trim()
+  const choiceIsClaimed = preview.status === 'list' && preview.claimed.includes(choice)
+  const hasIdentityStep = preview.status === 'list' || preview.status === 'manual'
+
   const onJoin = (e: FormEvent) => {
     e.preventDefault()
-    void run(() => team.join(normalizeCode(code), pseudo.trim(), mine()))
+    void run(() => team.join(code, joinPseudo, localPicks(joinPseudo)))
   }
   const onCreate = (e: FormEvent) => {
     e.preventDefault()
-    void run(() => team.create(teamName.trim(), pseudo.trim(), mine()))
+    const pseudo = createPseudo.trim()
+    void run(() => team.create(teamName.trim(), pseudo, localPicks(pseudo)))
   }
 
-  const profileOk = consent && pseudo.trim().length > 0
-  const ready = profileOk && !busy
   // Dit pourquoi un bouton est grisé, au lieu de laisser deviner.
-  const profileHint = pseudo.trim().length === 0 ? 'Saisis d’abord ton pseudo TTFL (bloc « Toi », juste au-dessus).' : !consent ? 'Coche d’abord la case d’accord (bloc « Toi », juste au-dessus).' : undefined
+  const joinHint =
+    !hasIdentityStep || busy
+      ? undefined
+      : preview.status === 'list' && !choice
+        ? 'Choisis ton nom dans la liste.'
+        : joinPseudo.length === 0
+          ? 'Saisis ton pseudo TTFL.'
+          : !consentJoin
+            ? 'Coche la case d’accord.'
+            : undefined
+  const canJoin = code.length === 8 && hasIdentityStep && !joinHint && !busy
+
+  const createHint =
+    teamName.trim().length === 0
+      ? 'Donne un nom à l’équipe.'
+      : createPseudo.trim().length === 0
+        ? 'Saisis ton pseudo TTFL.'
+        : !consentCreate
+          ? 'Coche la case d’accord.'
+          : undefined
+  const canCreate = !createHint && !busy
 
   return (
     <>
       {err && <div className="notice bad">{err}</div>}
-
-      <section className="card">
-        <h2>Toi</h2>
-        <label className="field">
-          <span>Ton pseudo TTFL</span>
-          <input value={pseudo} onChange={(e) => setPseudo(e.target.value)} placeholder="ex. Knicko" autoCapitalize="off" autoCorrect="off" maxLength={40} />
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          {CONSENT}
-        </label>
-        <p className="muted small">C’est le pseudo que tes coéquipiers verront. Il sert aussi à retrouver tes picks si tu changes de téléphone.</p>
-      </section>
 
       <form className="card" onSubmit={onJoin}>
         <h2>Rejoindre mon équipe</h2>
@@ -92,10 +158,80 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
           <span>Code d’invitation</span>
           <input value={code} onChange={(e) => setCode(normalizeCode(e.target.value))} placeholder="ABCD2345" maxLength={8} autoCapitalize="characters" autoCorrect="off" className="code-input" />
         </label>
-        <button className="btn primary big" type="submit" disabled={!ready || code.length !== 8}>
+
+        {preview.status === 'loading' && <p className="muted">Recherche de l’équipe…</p>}
+        {preview.status === 'unknown' && (
+          <div className="notice bad">Code d’invitation inconnu. Vérifie le lien, ou demande un nouveau code à ton équipe.</div>
+        )}
+
+        {preview.status === 'list' && (
+          <>
+            <p>
+              Équipe : <strong>{preview.teamName}</strong>
+            </p>
+            <label className="field">
+              <span>Qui es-tu ?</span>
+              <select value={choice} onChange={(e) => setChoice(e.target.value)}>
+                <option value="" disabled>
+                  Choisis ton nom…
+                </option>
+                {preview.fresh.length > 0 && (
+                  <optgroup label="Pas encore inscrits">
+                    {preview.fresh.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {preview.claimed.length > 0 && (
+                  <optgroup label="Déjà inscrits (nouvel appareil)">
+                    {preview.claimed.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <option value={OTHER}>Je ne suis pas dans la liste…</option>
+              </select>
+            </label>
+            {choice === OTHER && (
+              <label className="field">
+                <span>Ton pseudo TTFL</span>
+                <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="ex. Knicko" autoCapitalize="off" autoCorrect="off" maxLength={40} />
+              </label>
+            )}
+            {choiceIsClaimed && (
+              <div className="notice warn">
+                {choice} est déjà utilisé sur un autre appareil. Si c’est bien toi, continue : tu reprends ce membre avec tous ses
+                picks, et l’autre appareil sera déconnecté de l’équipe.
+              </div>
+            )}
+          </>
+        )}
+
+        {preview.status === 'manual' && (
+          <>
+            {preview.warning && <p className="muted small">{preview.warning}</p>}
+            <label className="field">
+              <span>Ton pseudo TTFL</span>
+              <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="ex. Knicko" autoCapitalize="off" autoCorrect="off" maxLength={40} />
+            </label>
+          </>
+        )}
+
+        {hasIdentityStep && (
+          <label className="check">
+            <input type="checkbox" checked={consentJoin} onChange={(e) => setConsentJoin(e.target.checked)} />
+            {CONSENT}
+          </label>
+        )}
+
+        <button className="btn primary big" type="submit" disabled={!canJoin}>
           {busy ? 'Connexion…' : 'Rejoindre'}
         </button>
-        {profileHint && <p className="muted small">{profileHint}</p>}
+        {joinHint && <p className="muted small">{joinHint}</p>}
       </form>
 
       <details className="card">
@@ -107,11 +243,19 @@ function NoTeam({ team, joinCode, localMembers }: Props) {
             <span>Nom de l’équipe</span>
             <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="ex. 76ersFR" maxLength={60} />
           </label>
-          <p className="muted small">Tu entres dans l’équipe avec le pseudo et l’accord du bloc « Toi ». Un code d’invitation est généré ensuite.</p>
-          <button className="btn big" type="submit" disabled={!ready || teamName.trim().length === 0}>
+          <label className="field">
+            <span>Ton pseudo TTFL</span>
+            <input value={createPseudo} onChange={(e) => setCreatePseudo(e.target.value)} placeholder="ex. Knicko" autoCapitalize="off" autoCorrect="off" maxLength={40} />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={consentCreate} onChange={(e) => setConsentCreate(e.target.checked)} />
+            {CONSENT}
+          </label>
+          <p className="muted small">Un code d’invitation est généré ensuite, à partager avec ton équipe.</p>
+          <button className="btn big" type="submit" disabled={!canCreate}>
             {busy ? 'Création…' : 'Créer l’équipe'}
           </button>
-          {profileHint && <p className="muted small">{profileHint}</p>}
+          {createHint && <p className="muted small">{createHint}</p>}
         </form>
       </details>
     </>
@@ -186,7 +330,11 @@ function InTeam({ team }: { team: TeamApi }) {
 
       <section className="card">
         <h2>Inviter un coéquipier</h2>
-        <p>Il ouvre le lien, saisit son pseudo TTFL, et il est dans l’équipe.</p>
+        <p>Il ouvre le lien, choisit son nom dans la liste des membres, et il est dans l’équipe.</p>
+        <p className="muted small">
+          Pour qu’un coéquipier apparaisse dans la liste, importe d’abord son historique (onglet Importer). Sinon, il saisit
+          simplement son pseudo.
+        </p>
         <div className="code">{code}</div>
         <div className="row-actions">
           {canShare && (

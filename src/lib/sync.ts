@@ -119,6 +119,25 @@ export async function joinTeam(code: string, myName: string): Promise<TeamLink> 
   return { teamId: r.out_team_id, teamName: r.out_team_name, memberId: r.out_member_id, inviteCode: r.out_invite_code }
 }
 
+/** Équipe vue depuis son code d'invitation, avant de la rejoindre : son nom et ses membres (pseudos seulement). */
+export interface TeamPreview {
+  teamName: string
+  members: { name: string; claimed: boolean }[]
+}
+
+interface PreviewRow {
+  team_name: string
+  members: { name: string; claimed: boolean }[]
+}
+
+export async function previewTeam(code: string): Promise<TeamPreview> {
+  const sb = await ready()
+  const { data, error } = await sb.rpc('preview_team', { p_code: code })
+  if (error) throw error
+  const r = data as PreviewRow
+  return { teamName: r.team_name, members: r.members ?? [] }
+}
+
 export async function fetchTeam(link: TeamLink, today: string): Promise<TeamData> {
   const sb = await ready()
 

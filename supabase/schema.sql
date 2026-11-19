@@ -214,6 +214,30 @@ begin
   return query select v_team.id, v_team.name, v_team.invite_code, v_member.id;
 end $$;
 
+-- Aperçu d'une équipe à partir de son code d'invitation, avant de la rejoindre : son nom et ses membres
+-- (pseudos et « déjà lié à un appareil ou non », jamais de picks), pour que le nouvel arrivant choisisse qui il est.
+-- Qui connaît le code peut de toute façon rejoindre l'équipe et tout voir : l'aperçu n'ouvre aucun accès de plus.
+create or replace function public.preview_team(p_code text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_team public.teams%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Connexion requise' using errcode = '28000';
+  end if;
+  select * into v_team from public.teams t where t.invite_code = upper(btrim(coalesce(p_code, '')));
+  if not found then
+    raise exception 'Code d''invitation inconnu' using errcode = 'P0002';
+  end if;
+  return jsonb_build_object(
+    'team_name', v_team.name,
+    'members', coalesce(
+      (select jsonb_agg(jsonb_build_object('name', m.name, 'claimed', m.user_id is not null) order by lower(m.name))
+         from public.members m where m.team_id = v_team.id),
+      '[]'::jsonb)
+  );
+end $$;
+
 -- Ajoute (ou retrouve) un membre pas encore inscrit : sert à enregistrer l'historique d'un coéquipier.
 create or replace function public.add_member(p_team uuid, p_name text) returns uuid
 language plpgsql security definer set search_path = public as $$
@@ -287,6 +311,7 @@ revoke all on function public.is_team_member(uuid)                 from public, 
 revoke all on function public.member_team(uuid)                    from public, anon;
 revoke all on function public.create_team(text, text)              from public, anon;
 revoke all on function public.join_team(text, text)                from public, anon;
+revoke all on function public.preview_team(text)                   from public, anon;
 revoke all on function public.add_member(uuid, text)               from public, anon;
 revoke all on function public.leave_team(uuid, boolean)            from public, anon;
 revoke all on function public.rotate_invite_code(uuid)             from public, anon;
@@ -295,6 +320,7 @@ grant execute on function public.is_team_member(uuid)              to authentica
 grant execute on function public.member_team(uuid)                 to authenticated;
 grant execute on function public.create_team(text, text)           to authenticated;
 grant execute on function public.join_team(text, text)             to authenticated;
+grant execute on function public.preview_team(text)                to authenticated;
 grant execute on function public.add_member(uuid, text)            to authenticated;
 grant execute on function public.leave_team(uuid, boolean)         to authenticated;
 grant execute on function public.rotate_invite_code(uuid)          to authenticated;

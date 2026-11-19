@@ -21,7 +21,8 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
 - **Installer** : parcours adapté à l'appareil (bouton d'installation Android, guide en 3 étapes sur iPhone,
   aide si le lien est ouvert dans WhatsApp/Instagram), QR code et bouton Partager.
 
-- **Équipe** : créer ou rejoindre une équipe avec un code d'invitation (lien partageable `#/join/CODE`), voir les membres,
+- **Équipe** : créer ou rejoindre une équipe avec un code d'invitation (lien partageable `#/join/CODE` : on choisit son
+  nom dans la liste des membres, ou on saisit son pseudo si on n'y figure pas), voir les membres,
   partager l'historique de chacun avec les téléphones de l'équipe (Supabase, voir [supabase/README.md](supabase/README.md)).
   Sans Supabase configuré, les données restent sur l'appareil (localStorage).
 

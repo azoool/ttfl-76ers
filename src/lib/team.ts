@@ -77,14 +77,41 @@ export function buildMembers(members: MemberRow[], picks: PickRow[], myMemberId:
     .sort((a, b) => Number(b.me) - Number(a.me) || a.name.localeCompare(b.name, 'fr'))
 }
 
+/** Noms des membres à proposer dans la liste « Qui es-tu ? » : d'abord ceux pas encore inscrits, puis ceux déjà liés à un appareil. */
+export function splitPreviewMembers(members: { name: string; claimed: boolean }[]): { fresh: string[]; claimed: string[] } {
+  const names = (claimed: boolean) =>
+    members
+      .filter((m) => m.claimed === claimed)
+      .map((m) => m.name)
+      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+  return { fresh: names(false), claimed: names(true) }
+}
+
+/**
+ * Pourquoi l'aperçu d'une équipe a échoué :
+ * - `unknown-code` : le code n'existe pas (ou plus) ;
+ * - `unavailable` : la fonction d'aperçu n'est pas (encore) installée dans Supabase → on saisit son pseudo à la main ;
+ * - `other` : réseau, serveur… → on saisit son pseudo à la main, en prévenant.
+ */
+export function classifyPreviewError(e: unknown): 'unknown-code' | 'unavailable' | 'other' {
+  const code = typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : ''
+  const msg = errorText(e)
+  if (code === 'P0002' || /code d'invitation inconnu/i.test(msg)) return 'unknown-code'
+  if (code === 'PGRST202' || /could not find the function|preview_team/i.test(msg)) return 'unavailable'
+  return 'other'
+}
+
+function errorText(e: unknown): string {
+  return e instanceof Error
+    ? e.message
+    : typeof e === 'object' && e !== null && 'message' in e
+      ? String((e as { message: unknown }).message)
+      : String(e)
+}
+
 /** Transforme une erreur réseau / Supabase en phrase compréhensible par un joueur. */
 export function friendlyError(e: unknown): string {
-  const msg =
-    e instanceof Error
-      ? e.message
-      : typeof e === 'object' && e !== null && 'message' in e
-        ? String((e as { message: unknown }).message)
-        : String(e)
+  const msg = errorText(e)
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
     return 'Pas de connexion à Internet. Réessaie dans un instant.'
   }

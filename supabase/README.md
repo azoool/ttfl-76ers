@@ -28,6 +28,10 @@ d'invitation de l'équipe donne accès aux picks de l'équipe.
 2. Coller tout le contenu du fichier [`schema.sql`](schema.sql).
 3. **Run**. Le résultat attendu est « Success. No rows returned ».
 
+**À chaque mise à jour de l'appli qui touche à la base** (par exemple la liste des membres proposée à l'arrivée par le
+lien d'invitation), recopier le nouveau `schema.sql` et le relancer de la même façon : il met tout à niveau sans rien
+effacer. Tant que ce n'est pas fait, l'appli reste utilisable : elle retombe sur la saisie du pseudo.
+
 Le script peut être relancé sans risque. Il crée trois tables (`teams`, `members`, `picks`), active la sécurité par
 ligne, et ajoute les fonctions utilisées par l'appli (créer ou rejoindre une équipe, changer le code…).
 

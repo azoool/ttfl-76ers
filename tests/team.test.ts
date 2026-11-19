@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { buildMembers, friendlyError, inviteUrl, normalizeCode, parseRoute } from '../src/lib/team'
+import {
+  buildMembers,
+  classifyPreviewError,
+  friendlyError,
+  inviteUrl,
+  normalizeCode,
+  parseRoute,
+  splitPreviewMembers,
+} from '../src/lib/team'
 
 describe('parseRoute', () => {
   it('lit les onglets', () => {
@@ -68,5 +76,39 @@ describe('friendlyError', () => {
   })
   it('garde les messages du serveur, déjà en français', () => {
     expect(friendlyError({ message: "Code d'invitation inconnu", code: 'P0002' })).toBe("Code d'invitation inconnu")
+  })
+})
+
+describe('splitPreviewMembers', () => {
+  it('sépare les membres pas encore inscrits de ceux déjà liés à un appareil, chacun par ordre alphabétique', () => {
+    const members = [
+      { name: 'Zoé', claimed: true },
+      { name: 'émilie', claimed: false },
+      { name: 'Bastien', claimed: false },
+      { name: 'alex', claimed: true },
+    ]
+    expect(splitPreviewMembers(members)).toEqual({ fresh: ['Bastien', 'émilie'], claimed: ['alex', 'Zoé'] })
+  })
+
+  it('gère une équipe vide', () => {
+    expect(splitPreviewMembers([])).toEqual({ fresh: [], claimed: [] })
+  })
+})
+
+describe('classifyPreviewError', () => {
+  it('reconnaît un code d’invitation inconnu', () => {
+    expect(classifyPreviewError({ code: 'P0002', message: 'Code d\'invitation inconnu' })).toBe('unknown-code')
+    expect(classifyPreviewError(new Error('Code d\'invitation inconnu'))).toBe('unknown-code')
+  })
+
+  it('reconnaît une fonction d’aperçu pas encore installée dans Supabase', () => {
+    expect(
+      classifyPreviewError({ code: 'PGRST202', message: 'Could not find the function public.preview_team(p_code) in the schema cache' }),
+    ).toBe('unavailable')
+  })
+
+  it('classe le reste (réseau, serveur…) à part', () => {
+    expect(classifyPreviewError(new TypeError('Failed to fetch'))).toBe('other')
+    expect(classifyPreviewError({ code: '500', message: 'boom' })).toBe('other')
   })
 })

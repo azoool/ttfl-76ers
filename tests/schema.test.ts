@@ -85,6 +85,7 @@ describe('schéma Supabase', () => {
     await expect(as(null, () => rows('select * from public.picks'))).rejects.toThrow(/permission denied/)
     await expect(as(null, () => rows("select * from public.create_team('x', 'y')"))).rejects.toThrow(/permission denied/)
     await expect(as(null, () => rows("select * from public.join_team('ABCDEFGH', 'y')"))).rejects.toThrow(/permission denied/)
+    await expect(as(null, () => rows("select public.preview_team('ABCDEFGH')"))).rejects.toThrow(/permission denied/)
   })
 
   it('interdit d’écrire directement dans teams et members', async () => {
@@ -239,6 +240,75 @@ describe('schéma Supabase', () => {
     await as(b, () => rows('select public.leave_team($1, true)', [t.out_team_id]))
     expect(await as(a, () => rows('select * from public.members where id = $1', [bob.out_member_id]))).toEqual([])
     expect(await as(a, () => rows('select * from public.picks where member_id = $1', [bob.out_member_id]))).toEqual([])
+  })
+
+  describe('aperçu d’une équipe avant de la rejoindre (preview_team)', () => {
+    interface Preview {
+      team_name: string
+      members: { name: string; claimed: boolean }[]
+    }
+    const preview = (uid: string, code: string) =>
+      as(uid, async () => (await rows<{ preview_team: Preview }>('select public.preview_team($1)', [code]))[0].preview_team)
+
+    it('montre à quelqu’un qui a le code le nom de l’équipe et ses membres, rangés par ordre alphabétique', async () => {
+      const [a, visitor] = [await newUser(), await newUser()]
+      const t = await createTeam(a, 'Les 76ers', 'Zoé')
+      await addMember(a, t.out_team_id, 'alex')
+      await addMember(a, t.out_team_id, 'Bastien')
+      const p = await preview(visitor, t.out_invite_code)
+      expect(p.team_name).toBe('Les 76ers')
+      expect(p.members.map((m) => m.name)).toEqual(['alex', 'Bastien', 'Zoé'])
+    })
+
+    it('indique quels membres sont déjà liés à un appareil', async () => {
+      const [a, visitor] = [await newUser(), await newUser()]
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      await addMember(a, t.out_team_id, 'Bob') // ajouté par un coéquipier : pas encore lié
+      const p = await preview(visitor, t.out_invite_code)
+      expect(p.members).toEqual([
+        { name: 'Alice', claimed: true },
+        { name: 'Bob', claimed: false },
+      ])
+    })
+
+    it('ne révèle aucun pick et n’ouvre aucun accès aux tables', async () => {
+      const [a, visitor] = [await newUser(), await newUser()]
+      const t = await createTeam(a)
+      await insertPick(a, t.out_member_id, '2026-11-10', 'Jalen Brunson')
+      const p = await preview(visitor, t.out_invite_code)
+      expect(JSON.stringify(p)).not.toMatch(/Brunson|2026-11-10/)
+      await as(visitor, async () => {
+        expect(await rows('select * from public.members where team_id = $1', [t.out_team_id])).toEqual([])
+        expect(await rows('select * from public.picks where member_id = $1', [t.out_member_id])).toEqual([])
+      })
+    })
+
+    it('accepte le code en minuscules et refuse un code inconnu', async () => {
+      const [a, visitor] = [await newUser(), await newUser()]
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      expect((await preview(visitor, ` ${t.out_invite_code.toLowerCase()} `)).team_name).toBe('Équipe')
+      await expect(preview(visitor, 'AAAAAAAA')).rejects.toThrow(/Code d'invitation inconnu/)
+    })
+
+    it('ne montre que les membres de l’équipe du code, pas ceux d’une autre', async () => {
+      const [a, c, visitor] = [await newUser(), await newUser(), await newUser()]
+      const t1 = await createTeam(a, 'Équipe 1', 'Alice')
+      await createTeam(c, 'Équipe 2', 'Carl')
+      expect((await preview(visitor, t1.out_invite_code)).members.map((m) => m.name)).toEqual(['Alice'])
+    })
+
+    it('choisir un membre de la liste revient à rejoindre avec son pseudo (membre repris, picks conservés)', async () => {
+      const [a, visitor] = [await newUser(), await newUser()]
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      const bob = await addMember(a, t.out_team_id, 'Bob')
+      await insertPick(a, bob, '2026-11-05', 'Jaylen Brown')
+      const chosen = (await preview(visitor, t.out_invite_code)).members.find((m) => !m.claimed)!
+      const joined = await joinTeam(visitor, t.out_invite_code, chosen.name)
+      expect(joined.out_member_id).toBe(bob)
+      expect(await as(visitor, () => rows('select player from public.picks where member_id = $1', [bob]))).toEqual([
+        { player: 'Jaylen Brown' },
+      ])
+    })
   })
 
   it('change le code d’invitation : l’ancien ne marche plus', async () => {
