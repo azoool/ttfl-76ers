@@ -615,6 +615,11 @@ select {
   padding: 10px;
   margin: 10px 0;
 }
+.code.long {
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+}
 .code-input {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.2em;

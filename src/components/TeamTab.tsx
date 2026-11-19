@@ -4,6 +4,7 @@ import { formatDayFr } from '../lib/dates'
 import { syncConfigured } from '../lib/supabaseConfig'
 import { classifyPreviewError, friendlyError, inviteUrl, normalizeCode, splitPreviewMembers } from '../lib/team'
 import type { TeamApi } from '../hooks/useTeam'
+import { SyncCard } from './SyncCard'
 
 interface Props {
   team: TeamApi
@@ -351,6 +352,8 @@ function InTeam({ team }: { team: TeamApi }) {
           Changer le code d’invitation
         </button>
       </section>
+
+      <SyncCard team={team} />
 
       <section className="card">
         <h2>Quitter l’équipe</h2>

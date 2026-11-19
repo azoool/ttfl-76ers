@@ -311,6 +311,146 @@ describe('schéma Supabase', () => {
     })
   })
 
+  describe('relevé automatique des picks (code de synchronisation)', () => {
+    interface SyncResult {
+      members: number
+      picks: number
+      created: number
+      skipped: number
+    }
+    type Payload = Array<{ name: string; picks: unknown[] }>
+    const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10)
+
+    const createToken = (uid: string, team: string) =>
+      as(uid, async () => (await rows<{ create_sync_token: string }>('select public.create_sync_token($1)', [team]))[0].create_sync_token)
+    // Le script de relevé appelle sans compte (rôle anon) : le code de synchronisation fait office de clé.
+    const sync = (token: string, members: Payload) =>
+      as(null, async () => (await rows<{ r: SyncResult }>('select public.sync_team_picks($1, $2::jsonb) as r', [token, JSON.stringify(members)]))[0].r)
+    const pickRows = (uid: string, team: string) =>
+      as(uid, () =>
+        rows<{ name: string; date: string; player: string; score: number | null; x2: boolean; source: string }>(
+          `select m.name, to_char(p.date, 'YYYY-MM-DD') as date, p.player, p.score, p.x2, p.source
+             from public.picks p join public.members m on m.id = p.member_id
+            where m.team_id = $1 order by m.name, p.date`,
+          [team],
+        ),
+      )
+    const status = (uid: string, team: string) =>
+      as(uid, async () => (await rows<{ sync_status: Record<string, unknown> }>('select public.sync_status($1)', [team]))[0].sync_status)
+
+    it('est réservé aux membres de l’équipe pour créer le code, qui a 24 caractères lisibles', async () => {
+      const [a, b] = [await newUser(), await newUser()]
+      const t = await createTeam(a)
+      await expect(createToken(b, t.out_team_id)).rejects.toThrow(/Accès refusé/)
+      expect(await createToken(a, t.out_team_id)).toMatch(/^[A-HJ-NP-Z2-9]{8}-[A-HJ-NP-Z2-9]{8}-[A-HJ-NP-Z2-9]{8}$/)
+    })
+
+    it('ne garde que l’empreinte du code et ferme la table à tout le monde', async () => {
+      const a = await newUser()
+      const t = await createTeam(a)
+      const token = await createToken(a, t.out_team_id)
+      const [{ token_hash }] = await rows<{ token_hash: string }>('select token_hash from public.sync_tokens where team_id = $1', [t.out_team_id])
+      expect(token_hash).toMatch(/^[0-9a-f]{64}$/)
+      expect(token_hash).not.toContain(token.replaceAll('-', ''))
+      await expect(as(a, () => rows('select * from public.sync_tokens'))).rejects.toThrow(/permission denied/)
+      await expect(as(null, () => rows('select * from public.sync_tokens'))).rejects.toThrow(/permission denied/)
+    })
+
+    it('enregistre les picks relevés sans compte, pour des membres existants ou nouveaux', async () => {
+      const a = await newUser()
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      const token = await createToken(a, t.out_team_id)
+      const res = await sync(token, [
+        { name: 'alice', picks: [{ date: day(-1), player: 'Jalen Brunson', score: 40, x2: false }] },
+        { name: 'Bob', picks: [{ date: day(-2), player: 'Joel Embiid', score: 46, x2: true }, { date: day(-1), player: 'Tyrese Maxey', score: 38, x2: false }] },
+      ])
+      expect(res).toEqual({ members: 2, picks: 3, created: 1, skipped: 0 })
+      const picks = await pickRows(a, t.out_team_id)
+      expect(picks.map((p) => `${p.name}:${p.player}`)).toEqual(['Alice:Jalen Brunson', 'Bob:Joel Embiid', 'Bob:Tyrese Maxey'])
+      expect(picks.every((p) => p.source === 'releve')).toBe(true)
+      expect(picks.find((p) => p.player === 'Joel Embiid')).toMatchObject({ score: 46, x2: true })
+    })
+
+    it('accepte le code avec ou sans tirets, en minuscules, et refuse un mauvais code', async () => {
+      const a = await newUser()
+      const t = await createTeam(a)
+      const token = await createToken(a, t.out_team_id)
+      const payload: Payload = [{ name: 'Alice', picks: [{ date: day(-1), player: 'X', score: 1 }] }]
+      await expect(sync(token.toLowerCase().replaceAll('-', ' '), payload)).resolves.toMatchObject({ members: 1 })
+      await expect(sync('AAAAAAAA-AAAAAAAA-AAAAAAAA', payload)).rejects.toThrow(/Code de synchronisation invalide/)
+      await expect(sync('', payload)).rejects.toThrow(/Code de synchronisation invalide/)
+    })
+
+    it('n’écrit que dans l’équipe du code, et un nouveau code invalide l’ancien', async () => {
+      const [a, c] = [await newUser(), await newUser()]
+      const t1 = await createTeam(a, 'Équipe 1', 'Alice')
+      const t2 = await createTeam(c, 'Équipe 2', 'Carl')
+      const token1 = await createToken(a, t1.out_team_id)
+      await sync(token1, [{ name: 'Alice', picks: [{ date: day(-1), player: 'Pick équipe 1' }] }])
+      expect(await pickRows(c, t2.out_team_id)).toEqual([])
+
+      const token2 = await createToken(a, t1.out_team_id)
+      expect(token2).not.toBe(token1)
+      await expect(sync(token1, [])).rejects.toThrow(/Code de synchronisation invalide/)
+      await expect(sync(token2, [])).resolves.toMatchObject({ members: 0 })
+    })
+
+    it('refuse les picks à venir et ignore une ligne illisible sans faire échouer le reste', async () => {
+      const a = await newUser()
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      const token = await createToken(a, t.out_team_id)
+      const res = await sync(token, [
+        {
+          name: 'Alice',
+          picks: [
+            { date: day(+5), player: 'Pick à venir' },
+            { date: 'pas une date', player: 'Illisible' },
+            { date: day(-3), player: '' },
+            { date: day(-4), player: 'Score absurde', score: 'abc' },
+            { date: day(-5), player: 'Valide', score: 30 },
+          ],
+        },
+      ])
+      expect(res.picks).toBe(1)
+      expect((await pickRows(a, t.out_team_id)).map((p) => p.player)).toEqual(['Valide'])
+    })
+
+    it('ne réécrit pas les picks inchangés et corrige ceux qui ont changé', async () => {
+      const a = await newUser()
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      const token = await createToken(a, t.out_team_id)
+      const payload: Payload = [{ name: 'Alice', picks: [{ date: day(-2), player: 'Jalen Brunson', score: 40, x2: false }] }]
+      expect((await sync(token, payload)).picks).toBe(1)
+      expect((await sync(token, payload)).picks).toBe(0) // rien de neuf
+      const fixed: Payload = [{ name: 'Alice', picks: [{ date: day(-2), player: 'Jalen Brunson', score: 41, x2: false }] }]
+      expect((await sync(token, fixed)).picks).toBe(1)
+      expect((await pickRows(a, t.out_team_id))[0].score).toBe(41)
+    })
+
+    it('respecte la limite de 12 membres et les données mal formées', async () => {
+      const a = await newUser()
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      const token = await createToken(a, t.out_team_id)
+      for (let i = 1; i <= 11; i++) await addMember(a, t.out_team_id, `Joueur ${i}`)
+      const res = await sync(token, [{ name: 'Le 13e', picks: [{ date: day(-1), player: 'X' }] }])
+      expect(res).toMatchObject({ members: 0, skipped: 1 })
+      await expect(sync(token, 'pas un tableau' as unknown as Payload)).rejects.toThrow(/Données invalides/)
+      await expect(sync(token, Array.from({ length: 13 }, (_, i) => ({ name: `M${i}`, picks: [] })))).rejects.toThrow(/Données invalides/)
+    })
+
+    it('indique l’état de la synchronisation aux membres seulement', async () => {
+      const [a, b] = [await newUser(), await newUser()]
+      const t = await createTeam(a, 'Équipe', 'Alice')
+      expect(await status(a, t.out_team_id)).toEqual({ enabled: false })
+      await expect(status(b, t.out_team_id)).rejects.toThrow(/Accès refusé/)
+
+      const token = await createToken(a, t.out_team_id)
+      expect(await status(a, t.out_team_id)).toMatchObject({ enabled: true, last_sync_at: null })
+      await sync(token, [{ name: 'Alice', picks: [] }])
+      expect((await status(a, t.out_team_id)).last_sync_at).not.toBeNull()
+    })
+  })
+
   it('change le code d’invitation : l’ancien ne marche plus', async () => {
     const [a, b] = [await newUser(), await newUser()]
     const t = await createTeam(a)

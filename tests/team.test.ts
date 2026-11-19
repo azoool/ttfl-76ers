@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   buildMembers,
   classifyPreviewError,
+  describeWhen,
   friendlyError,
   inviteUrl,
+  isMissingFunction,
   normalizeCode,
   parseRoute,
   splitPreviewMembers,
@@ -110,5 +112,27 @@ describe('classifyPreviewError', () => {
   it('classe le reste (réseau, serveur…) à part', () => {
     expect(classifyPreviewError(new TypeError('Failed to fetch'))).toBe('other')
     expect(classifyPreviewError({ code: '500', message: 'boom' })).toBe('other')
+  })
+})
+
+describe('describeWhen', () => {
+  const now = new Date('2026-11-19T10:00:00Z') // 11 h à Paris
+  it('dit « aujourd’hui », « hier » ou la date, à l’heure de Paris', () => {
+    expect(describeWhen('2026-11-19T08:12:00Z', now)).toBe('aujourd’hui à 09:12')
+    expect(describeWhen('2026-11-18T22:40:00Z', now)).toBe('hier à 23:40')
+    expect(describeWhen('2026-11-15T07:05:00Z', now)).toMatch(/^le 15 nov\.? à 08:05$/)
+  })
+  it('dit « jamais » sans date', () => {
+    expect(describeWhen(undefined, now)).toBe('jamais')
+    expect(describeWhen('pas une date', now)).toBe('jamais')
+  })
+})
+
+describe('isMissingFunction', () => {
+  it('reconnaît une fonction absente de la base, pas les autres erreurs', () => {
+    expect(isMissingFunction({ code: 'PGRST202', message: 'x' })).toBe(true)
+    expect(isMissingFunction({ message: 'Could not find the function public.sync_status(p_team) in the schema cache' })).toBe(true)
+    expect(isMissingFunction({ code: '42501', message: 'Accès refusé' })).toBe(false)
+    expect(isMissingFunction(new TypeError('Failed to fetch'))).toBe(false)
   })
 })

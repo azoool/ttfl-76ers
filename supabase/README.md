@@ -58,6 +58,16 @@ VITE_SUPABASE_KEY=sb_publishable_…
 
 Pour tester en local, le même contenu dans `.env.local`. Puis `npm run dev`, onglet **Équipe**.
 
+## 6. Relevé automatique des picks (facultatif)
+
+Dans l'appli : onglet **Équipe → Relevé automatique des picks → Activer** génère un **code de synchronisation** (affiché une
+seule fois). Un seul membre installe ensuite le script `ttfl-releve.user.js` avec Tampermonkey (instructions dans la carte)
+et y colle le code. Le script envoie chaque jour les picks de l'équipe à la fonction `sync_team_picks`.
+
+- Le code ne donne **aucun accès en lecture** : il permet seulement d'ajouter ou de corriger des picks passés de l'équipe.
+  La base n'en garde que l'empreinte ; un nouveau code invalide l'ancien (à faire si le code a fuité).
+- Il faut relancer `schema.sql` (étape 3) une fois pour installer ces fonctions ; l'appli le signale tant que ce n'est pas fait.
+
 ## Ce qui est partagé, et avec qui
 
 - Uniquement avec les membres de l'équipe qui ont le code d'invitation : date, joueur et score de chaque pick **passé**.

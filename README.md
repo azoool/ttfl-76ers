@@ -30,7 +30,17 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   partager l'historique de chacun avec les téléphones de l'équipe (Supabase, voir [supabase/README.md](supabase/README.md)).
   Sans Supabase configuré, les données restent sur l'appareil (localStorage).
 
-Le relevé automatique des picks de l'équipe (userscript) est la prochaine étape.
+- **Relevé automatique des picks** (onglet Équipe) : un script ([`public/ttfl-releve.user.js`](public/ttfl-releve.user.js)),
+  installé avec Tampermonkey dans le navigateur d'**un seul** membre, relève chaque jour les picks de toute l'équipe et les
+  envoie à l'appli avec un **code de synchronisation** d'équipe (généré dans l'onglet Équipe). L'import à la main reste
+  possible. Fonctionnement :
+  - au premier passage de la journée sur TTFL, le script lit, avec la session déjà ouverte du membre, la page « Mon équipe »,
+    le profil de chaque coéquipier (ses 5 derniers picks), le profil du membre et son historique complet : une douzaine
+    de pages, espacées de 0,6 s ;
+  - il envoie les picks **passés** (ceux du soir sont cachés par TTFL) à la fonction `sync_team_picks` de Supabase ;
+  - le code de synchronisation ne permet que d'écrire des picks ; la base n'en garde que l'empreinte (sha256) ;
+    en générer un nouveau invalide l'ancien ;
+  - les fonctions de lecture du script sont testées (`tests/releve.test.ts`), la base aussi (`tests/schema.test.ts`).
 
 ## Commandes
 
@@ -69,6 +79,10 @@ publie le dossier `dist/` sur GitHub Pages à chaque push sur `main` :
 ## Respect des CGU de TTFL
 
 TTFL n'a pas d'API publique et ses CGU réservent l'usage du site à un cadre personnel et récréatif.
-L'appli ne se connecte donc jamais à TTFL avec un identifiant : l'historique est collé par chaque joueur
-lui-même, et aucun mot de passe TTFL n'est demandé ni stocké. Avant d'ajouter un relevé automatique
-des picks, demander l'accord écrit de TrashTalk (ttfl@trashtalk.co).
+L'appli ne se connecte donc jamais à TTFL avec un identifiant, et aucun mot de passe TTFL n'est demandé ni stocké :
+l'historique peut être collé par chaque joueur lui-même.
+
+Le relevé automatique est un cas à part : le script tourne dans le navigateur d'un membre, avec sa session, et ne lit que
+des pages qu'il peut déjà consulter (une douzaine, une fois par jour), sans contourner la connexion ni la protection
+anti-robot. C'est tout de même un accès automatisé, que les CGU de TTFL encadrent : **prévenir TrashTalk
+(ttfl@trashtalk.co) et obtenir son accord est conseillé** avant de l'utiliser.

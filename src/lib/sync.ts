@@ -192,6 +192,38 @@ export async function pushPicks(link: TeamLink, memberName: string, picks: PushP
   }
 }
 
+/** État du relevé automatique des picks (script installé dans le navigateur d'un membre). */
+export interface SyncStatus {
+  /** un code de synchronisation existe pour l'équipe */
+  enabled: boolean
+  /** dernier relevé reçu (ISO) */
+  lastSyncAt?: string
+  /** création du code actuel (ISO) */
+  createdAt?: string
+}
+
+interface SyncStatusRow {
+  enabled: boolean
+  last_sync_at?: string | null
+  created_at?: string | null
+}
+
+export async function getSyncStatus(link: TeamLink): Promise<SyncStatus> {
+  const sb = await ready()
+  const { data, error } = await sb.rpc('sync_status', { p_team: link.teamId })
+  if (error) throw error
+  const r = data as SyncStatusRow
+  return { enabled: !!r.enabled, lastSyncAt: r.last_sync_at ?? undefined, createdAt: r.created_at ?? undefined }
+}
+
+/** Crée (ou remplace) le code de synchronisation. Il n'est renvoyé qu'une fois : la base n'en garde que l'empreinte. */
+export async function createSyncToken(link: TeamLink): Promise<string> {
+  const sb = await ready()
+  const { data, error } = await sb.rpc('create_sync_token', { p_team: link.teamId })
+  if (error) throw error
+  return data as string
+}
+
 export async function leaveTeam(link: TeamLink, deleteData: boolean): Promise<void> {
   const sb = await ready()
   const { error } = await sb.rpc('leave_team', { p_team: link.teamId, p_delete: deleteData })

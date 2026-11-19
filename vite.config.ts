@@ -30,7 +30,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png}'],
+        // Le script de relevé est téléchargé par l'extension (Tampermonkey…), pas utilisé par l'appli : ni en cache hors ligne,
+        // ni remplacé par la page d'accueil quand on ouvre son adresse.
+        globIgnores: ['**/*.user.js'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/\.user\.js$/],
       },
     }),
   ],

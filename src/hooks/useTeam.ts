@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { parisToday } from '../lib/dates'
 import {
+  createSyncToken,
   createTeam,
   fetchTeam,
+  getSyncStatus,
   joinTeam,
   leaveTeam,
   loadTeamCache,
@@ -117,6 +119,10 @@ export function useTeam() {
     [link, refresh],
   )
 
+  // Relevé automatique des picks : état, et création du code de synchronisation de l'équipe.
+  const syncStatus = useCallback(() => (link ? getSyncStatus(link) : Promise.resolve({ enabled: false })), [link])
+  const newSyncToken = useCallback(() => (link ? createSyncToken(link) : Promise.reject(new Error('Pas d’équipe'))), [link])
+
   const leave = useCallback(
     async (deleteData: boolean) => {
       if (!link) return
@@ -146,6 +152,8 @@ export function useTeam() {
     join,
     preview: previewTeam,
     importPicks,
+    syncStatus,
+    newSyncToken,
     leave,
     rotate,
   }

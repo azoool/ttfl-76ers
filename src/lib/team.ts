@@ -101,6 +101,29 @@ export function classifyPreviewError(e: unknown): 'unknown-code' | 'unavailable'
   return 'other'
 }
 
+/** La fonction demandée n'existe pas encore dans la base : `schema.sql` n'a pas été relancé depuis la mise à jour de l'appli. */
+export function isMissingFunction(e: unknown): boolean {
+  const code = typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : ''
+  return code === 'PGRST202' || /could not find the function/i.test(errorText(e))
+}
+
+/**
+ * Date d'un événement à la française : « aujourd'hui à 09:12 », « hier à 23:40 », « le 15 nov. à 08:05 » (heure de Paris).
+ * `iso` absent : « jamais ».
+ */
+export function describeWhen(iso: string | undefined, now: Date = new Date()): string {
+  if (!iso) return 'jamais'
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return 'jamais'
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(d)
+  const time = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }).format(at)
+  const yesterday = new Date(now.getTime() - 86_400_000)
+  if (day(at) === day(now)) return `aujourd’hui à ${time}`
+  if (day(at) === day(yesterday)) return `hier à ${time}`
+  const date = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'short' }).format(at)
+  return `le ${date} à ${time}`
+}
+
 function errorText(e: unknown): string {
   return e instanceof Error
     ? e.message
