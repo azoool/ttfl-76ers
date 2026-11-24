@@ -463,6 +463,29 @@ select {
   gap: 6px;
   margin: 4px 0 0;
 }
+/* Adversaire du jour d'un favori : « vs » (domicile) ou « @ » (extérieur) puis le logo */
+.matchup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.matchup .vs {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+/* Fond blanc : les logos sombres restent lisibles en thème sombre. */
+.opp-logo {
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 1px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #fff;
+}
 .avg {
   flex: none;
   text-align: right;

@@ -1,6 +1,7 @@
 import type { LockInfo, Member } from '../lib/availability'
 import { avgFormat, plural } from '../lib/format'
 import type { RankedRow } from '../lib/groups'
+import { matchupLabel, matchupSymbol, type Opponent } from '../lib/matchups'
 
 function injuryBadge(status: string): { label: string; cls: string } {
   const s = status.toLowerCase()
@@ -23,9 +24,11 @@ interface Props {
   onToggleFavorite: () => void
   /** équipe du joueur, à afficher quand la liste mélange plusieurs équipes (favoris) */
   teamLabel?: string
+  /** adversaire du jour : « vs » + logo à domicile, « @ » + logo à l'extérieur */
+  opponent?: Opponent
 }
 
-export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggleFavorite, teamLabel }: Props) {
+export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggleFavorite, teamLabel, opponent }: Props) {
   const inj = r.candidate.injury ? injuryBadge(r.candidate.injury.status) : undefined
   const blocked = active.filter((m) => r.perMember[m.id].state !== 'free')
   const name = r.candidate.name
@@ -45,7 +48,20 @@ export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggle
         <div className="player-id">
           <strong>{name}</strong>
           {teamLabel && <span className="muted"> · {teamLabel}</span>}
-          {r.candidate.position && <span className="muted"> · {r.candidate.position}</span>}{' '}
+          {r.candidate.position && <span className="muted"> · {r.candidate.position}</span>}
+          {opponent && (
+            <>
+              {' '}
+              <span className="matchup" title={matchupLabel(opponent)}>
+                <span className="vs">{matchupSymbol(opponent)}</span>
+                {opponent.team.logo ? (
+                  <img className="opp-logo" src={opponent.team.logo} alt={opponent.team.name} width={22} height={22} loading="lazy" />
+                ) : (
+                  <strong>{opponent.team.abbr}</strong>
+                )}
+              </span>
+            </>
+          )}{' '}
           {inj && (
             <span className={`badge ${inj.cls}`} title={r.candidate.injury?.comment}>
               {inj.label}

@@ -16,6 +16,7 @@ import {
 } from '../lib/favorites'
 import { plural } from '../lib/format'
 import { groupByTeam, type RankedRow } from '../lib/groups'
+import { opponentsByTeam } from '../lib/matchups'
 import { indexStats, type StatsIndex } from '../lib/seasonStats'
 import { playerKey } from '../lib/ttfl'
 import { PlayerRow } from './PlayerRow'
@@ -121,6 +122,8 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
     () => new Map(load.status === 'ok' ? load.night.teams.map((t) => [t.id, t.abbr] as const) : []),
     [load],
   )
+  // Adversaire du jour de chaque équipe (« vs » à domicile, « @ » à l'extérieur), affiché dans la case des favoris.
+  const opponents = useMemo(() => opponentsByTeam(load.status === 'ok' ? load.night.games : []), [load])
   // Favoris disponibles / indisponibles pour les membres comptés (par défaut : moi).
   const { free: favFree, blocked: favBlocked } = useMemo(() => splitByAvailability(favRows), [favRows])
   const favList = (list: RankedRow[]) => (
@@ -133,6 +136,7 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
           favorite
           onToggleFavorite={() => toggleFav(ranked.row.candidate)}
           teamLabel={teamAbbr.get(ranked.row.candidate.teamId ?? '') ?? ranked.row.candidate.team}
+          opponent={opponents.get(ranked.row.candidate.teamId ?? '')}
         />
       ))}
     </ul>
