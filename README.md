@@ -41,6 +41,18 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   - le code de synchronisation ne permet que d'écrire des picks ; la base n'en garde que l'empreinte (sha256) ;
     en générer un nouveau invalide l'ancien ;
   - les fonctions de lecture du script sont testées (`tests/releve.test.ts`), la base aussi (`tests/schema.test.ts`).
+- **Version téléphone Android (Termux)** : Chrome sur téléphone n'accepte pas les scripts. Le programme
+  [`public/releve-termux.mjs`](public/releve-termux.mjs) fait le même relevé en arrière-plan dans l'application Termux,
+  avec une notification après chaque relevé (réussi ou non). Installation guidée dans l'onglet Équipe de l'appli.
+  - Il se connecte à TTFL avec les cookies « se souvenir de moi » du compte (`TTFLmail`, `TTFLhash`) : jamais de mot
+    de passe, jamais de captcha contourné. Ces cookies équivalent à l'identifiant : ils restent dans `config.json`
+    (lisible par l'utilisateur seul), n'apparaissent dans aucun journal ni notification (testé), et durent environ
+    90 jours ; une notification prévient 14 jours avant, puis en cas d'échec.
+  - Une tâche `termux-job-scheduler` se réveille toutes les 3 h ; le programme décide lui-même : un relevé par jour, à
+    partir de l'heure choisie (9 h par défaut), au plus 3 essais par jour.
+  - Il réutilise les fonctions de lecture du script du navigateur (`ttfl-releve.user.js`, même dossier), donc une seule
+    logique à maintenir. Testé contre un faux TTFL et un faux Supabase (`tests/releve-termux.test.ts`) ; **pas encore
+    éprouvé sur un vrai téléphone** : le comportement réel de la reconnexion par cookies se vérifie au premier `setup`.
 
 ## Commandes
 
@@ -84,5 +96,6 @@ l'historique peut être collé par chaque joueur lui-même.
 
 Le relevé automatique est un cas à part : le script tourne dans le navigateur d'un membre, avec sa session, et ne lit que
 des pages qu'il peut déjà consulter (une douzaine, une fois par jour), sans contourner la connexion ni la protection
-anti-robot. C'est tout de même un accès automatisé, que les CGU de TTFL encadrent : **prévenir TrashTalk
-(ttfl@trashtalk.co) et obtenir son accord est conseillé** avant de l'utiliser.
+anti-robot. La version Termux va un cran plus loin : un programme se reconnecte seul avec les cookies « se souvenir de
+moi » du compte (jamais de mot de passe). C'est un accès automatisé, que les CGU de TTFL encadrent : **prévenir
+TrashTalk (ttfl@trashtalk.co) et obtenir son accord est conseillé** avant de l'utiliser.

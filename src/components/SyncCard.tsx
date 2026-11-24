@@ -3,6 +3,28 @@ import type { TeamApi } from '../hooks/useTeam'
 import type { SyncStatus } from '../lib/sync'
 import { describeWhen, friendlyError, isMissingFunction } from '../lib/team'
 
+/** Bloc de commandes à copier d'un tap (pour coller dans Termux). */
+function CommandBlock({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // copie impossible : la sélection manuelle reste possible
+    }
+  }
+  return (
+    <div className="cmd">
+      <pre>{text}</pre>
+      <button type="button" className="btn small" onClick={copy}>
+        {copied ? 'Copié' : 'Copier'}
+      </button>
+    </div>
+  )
+}
+
 type State =
   | { kind: 'loading' }
   | { kind: 'ok'; status: SyncStatus }
@@ -17,7 +39,16 @@ export function SyncCard({ team }: { team: TeamApi }) {
   const [token, setToken] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>()
-  const scriptUrl = new URL('ttfl-releve.user.js', `${location.origin}${location.pathname}`).href
+  const base = `${location.origin}${location.pathname}`
+  const scriptUrl = new URL('ttfl-releve.user.js', base).href
+  const termuxCommands = [
+    'pkg update -y && pkg install -y nodejs termux-api',
+    'mkdir -p ~/ttfl-releve && cd ~/ttfl-releve',
+    `curl -fsSLO ${new URL('releve-termux.mjs', base).href}`,
+    `curl -fsSLO ${scriptUrl}`,
+    'npm install linkedom@0.18.15',
+    'node releve-termux.mjs setup',
+  ].join('\n')
 
   const refresh = useCallback(
     () =>
@@ -105,7 +136,7 @@ export function SyncCard({ team }: { team: TeamApi }) {
 
       <details>
         <summary>
-          <strong>Installer le relevé (une seule personne)</strong>
+          <strong>Sur ordinateur (une seule personne)</strong>
         </summary>
         <ol className="steps">
           <li>
@@ -129,6 +160,52 @@ export function SyncCard({ team }: { team: TeamApi }) {
           profil de chaque coéquipier, ton historique), une douzaine de pages une fois par jour, et n’envoie que des picks passés.
           Aucun mot de passe n’est lu ni envoyé. TTFL limite les usages automatisés dans ses CGU : prévenir TrashTalk
           (ttfl@trashtalk.co) est conseillé.
+        </p>
+      </details>
+
+      <details>
+        <summary>
+          <strong>Sur téléphone Android (Termux), en arrière-plan</strong>
+        </summary>
+        <p>
+          Chrome sur téléphone n’accepte pas les scripts. Cette version tourne dans l’appli <strong>Termux</strong>, toute seule
+          en arrière-plan, une fois par jour, et te notifie à chaque relevé : réussi ou non.
+        </p>
+        <div className="notice warn">
+          Elle se connecte à TTFL avec deux cookies « se souvenir de moi » de ton compte, <strong>TTFLmail</strong> et{' '}
+          <strong>TTFLhash</strong>. Ils équivalent à ton identifiant : ne les partage avec personne, pas même ici. Ils expirent
+          au bout d’environ 90 jours (tu seras prévenu), il faudra alors les recopier.
+        </div>
+        <ol className="steps">
+          <li>
+            Installe <strong>Termux</strong> et <strong>Termux:API</strong> depuis{' '}
+            <a href="https://f-droid.org/packages/com.termux/" target="_blank" rel="noopener">
+              F-Droid
+            </a>{' '}
+            (pas depuis le Play Store : version trop ancienne).
+          </li>
+          <li>
+            Dans les réglages Android, pour ces deux applis : autorise les <strong>notifications</strong> et mets la batterie sur{' '}
+            <strong>« sans restriction »</strong>, sinon Android arrête la tâche.
+          </li>
+          <li>
+            Ouvre Termux, copie puis colle ces commandes (Termux te demande d’autoriser le stockage et les notifications) :
+            <CommandBlock text={termuxCommands} />
+          </li>
+          <li>
+            L’installation te demande, sans les afficher : le code de synchronisation (ci-dessus) puis les valeurs de{' '}
+            <strong>TTFLmail</strong> et <strong>TTFLhash</strong>. Sur un ordinateur, ouvre fantasy.trashtalk.co connecté, touche
+            F12, onglet <em>Application</em> → <em>Cookies</em> → <em>fantasy.trashtalk.co</em>, et copie ces deux valeurs (la
+            colonne <em>Expires</em> donne la date d’expiration). Transmets-les-toi par un moyen sûr, par exemple ton gestionnaire
+            de mots de passe, et supprime-les ensuite.
+          </li>
+          <li>Le premier relevé part tout de suite : une notification ✔ ou ✘ confirme que tout fonctionne.</li>
+        </ol>
+        <p className="muted small">
+          Ensuite, un relevé par jour à partir de l’heure choisie. Commandes utiles dans <code>~/ttfl-releve</code> :{' '}
+          <code>node releve-termux.mjs status</code>, <code>node releve-termux.mjs run --force</code> (relever maintenant),{' '}
+          <code>node releve-termux.mjs remove</code> (arrêter). Lecture seule sur TTFL, avec un petit délai entre les pages. TTFL
+          limite les usages automatisés dans ses CGU : prévenir TrashTalk (ttfl@trashtalk.co) est conseillé.
         </p>
       </details>
     </section>

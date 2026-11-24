@@ -620,6 +620,23 @@ select {
   letter-spacing: 0.08em;
   overflow-wrap: anywhere;
 }
+/* Commandes à copier (guide Termux) */
+.cmd {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.cmd pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+}
+.cmd .btn {
+  margin: 0 8px 8px;
+}
 .code-input {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.2em;
