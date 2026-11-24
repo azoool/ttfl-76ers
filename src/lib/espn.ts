@@ -1,4 +1,5 @@
 import type { Candidate } from './availability'
+import { parseGameLog, type GameLine, type RawGameLog } from './form'
 import { parseSeasonStats, type RawSeasonStats, type SeasonStats } from './seasonStats'
 
 // API publique (non officielle) d'ESPN : renvoie `Access-Control-Allow-Origin: *`,
@@ -115,6 +116,17 @@ export function fetchSeasonStats(): Promise<SeasonStats> {
   return cached('seasonstats2', 2 * 3_600_000, async () => {
     const params = 'region=us&lang=en&contentorigin=espn&isqualified=false&limit=500&page=1&sort=offensive.avgPoints%3Adesc'
     return parseSeasonStats(await getJson<RawSeasonStats>(`${SEASON_STATS}?${params}`))
+  })
+}
+
+/**
+ * Les 10 derniers matchs joués d'un joueur (saison régulière), du plus récent au plus ancien, avec leur score TTFL.
+ * Une requête d'environ 8 Ko, faite au premier clic sur la moyenne ; mise en cache 2 h.
+ */
+export function fetchRecentGames(athleteId: string): Promise<GameLine[]> {
+  return cached(`gamelog1.${athleteId}`, 2 * 3_600_000, async () => {
+    const url = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${encodeURIComponent(athleteId)}/gamelog?region=us&lang=en&contentorigin=espn`
+    return parseGameLog(await getJson<RawGameLog>(url)).slice(0, 10)
   })
 }
 

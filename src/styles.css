@@ -493,6 +493,17 @@ select {
   flex: none;
   text-align: right;
   line-height: 1.15;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  cursor: pointer;
+}
+.avg.form strong {
+  color: var(--accent);
 }
 .avg strong {
   display: block;
