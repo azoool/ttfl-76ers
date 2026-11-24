@@ -45,7 +45,9 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   [`public/releve-termux.mjs`](public/releve-termux.mjs) fait le même relevé en arrière-plan dans l'application Termux,
   avec une notification après chaque relevé (réussi ou non). Installation guidée dans l'onglet Équipe de l'appli.
   - Il se connecte à TTFL avec les cookies « se souvenir de moi » du compte (`TTFLmail`, `TTFLhash`) : jamais de mot
-    de passe, jamais de captcha contourné. Ces cookies équivalent à l'identifiant : ils restent dans `config.json`
+    de passe, jamais de captcha contourné. Ils se copient en une fois depuis Chrome (un court texte
+    `TTFLmail=…; TTFLhash=…`, sans les autres cookies : le guide de l'appli donne la ligne à utiliser). Ces cookies
+    équivalent à l'identifiant : ils restent dans `config.json`
     (lisible par l'utilisateur seul), n'apparaissent dans aucun journal ni notification (testé), et durent environ
     90 jours ; une notification prévient 14 jours avant, puis en cas d'échec.
   - Une tâche `termux-job-scheduler` se réveille toutes les 3 h ; le programme décide lui-même : un relevé par jour, à

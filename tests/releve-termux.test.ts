@@ -331,3 +331,59 @@ describe('loadParsers', () => {
     expect(Object.keys(parsers).sort()).toEqual(['buildPayload', 'parseOwnName', 'parsePicksTable', 'parseTeamMembers', 'toIsoDate', 'todayParis'])
   })
 })
+
+describe('extractRememberCookies', () => {
+  it('retrouve les deux cookies dans le court texte du guide', () => {
+    expect(termux.extractRememberCookies('TTFLmail=a%40b.fr; TTFLhash=Zx9=-_')).toEqual({ TTFLmail: 'a%40b.fr', TTFLhash: 'Zx9=-_' })
+  })
+
+  it('ignore tous les autres cookies d’un texte complet (document.cookie)', () => {
+    const all = '_ga=GA1.1.1; PHPSESSID=abc123; TTFLmail=m; euconsent-v2=XYZ; TTFLhash=h; cto_bundle=zzz'
+    expect(termux.extractRememberCookies(all)).toEqual({ TTFLmail: 'm', TTFLhash: 'h' })
+  })
+
+  it('accepte une valeur par ligne et les guillemets', () => {
+    expect(termux.extractRememberCookies('TTFLmail="m"\nTTFLhash=\'h\'')).toEqual({ TTFLmail: 'm', TTFLhash: 'h' })
+  })
+
+  it('ne renvoie que ce qu’il trouve, sans confondre un cookie qui contient le même nom', () => {
+    expect(termux.extractRememberCookies('XTTFLmail=piege; TTFLhash=h')).toEqual({ TTFLhash: 'h' })
+    expect(termux.extractRememberCookies('')).toEqual({})
+    expect(termux.extractRememberCookies(undefined)).toEqual({})
+  })
+})
+
+describe('gatherConfig', () => {
+  const answers = (list: string[]) => {
+    const asked: string[] = []
+    const prompt = async (question: string) => {
+      asked.push(question)
+      return list.shift() ?? ''
+    }
+    return { prompt, asked }
+  }
+  const quiet = () => {}
+
+  it('construit la configuration à partir d’une seule copie des cookies', async () => {
+    const { prompt, asked } = answers([TOKEN, 'TTFLmail=M; TTFLhash=H', '8'])
+    const config = await termux.gatherConfig(prompt, quiet)
+    expect(config).toEqual({ token: TOKEN, cookies: { TTFLmail: 'M', TTFLhash: 'H' }, afterHour: 8 })
+    expect(asked).toHaveLength(3) // code, texte des cookies, heure : pas de question en plus
+  })
+
+  it('retombe sur la saisie des deux valeurs une à une, même collées avec leur nom', async () => {
+    const { prompt } = answers([TOKEN, '', 'TTFLmail=M', '"H"', ''])
+    expect(await termux.gatherConfig(prompt, quiet)).toEqual({ token: TOKEN, cookies: { TTFLmail: 'M', TTFLhash: 'H' }, afterHour: 9 })
+  })
+
+  it('prend 9 h par défaut et borne l’heure choisie', async () => {
+    expect((await termux.gatherConfig(answers([TOKEN, 'TTFLmail=M; TTFLhash=H', 'abc']).prompt, quiet)).afterHour).toBe(9)
+    expect((await termux.gatherConfig(answers([TOKEN, 'TTFLmail=M; TTFLhash=H', '99']).prompt, quiet)).afterHour).toBe(23)
+    expect((await termux.gatherConfig(answers([TOKEN, 'TTFLmail=M; TTFLhash=H', '0']).prompt, quiet)).afterHour).toBe(0)
+  })
+
+  it('refuse d’enregistrer s’il manque le code ou un cookie', async () => {
+    expect(await termux.gatherConfig(answers(['', 'TTFLmail=M; TTFLhash=H', '']).prompt, quiet)).toBeNull()
+    expect(await termux.gatherConfig(answers([TOKEN, 'TTFLmail=M', '', '']).prompt, quiet)).toBeNull()
+  })
+})

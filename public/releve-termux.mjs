@@ -345,24 +345,51 @@ const HELP = `TTFL 76ersFR — relevé des picks (Termux) v${VERSION}
 
 Fichiers (dossier du programme) : config.json (cookies et code, confidentiels), state.json, run.log.`
 
+/**
+ * Retrouve TTFLmail et TTFLhash dans un texte collé : « TTFLmail=…; TTFLhash=… » (ce que produit le guide de l'appli),
+ * ou le texte complet de `document.cookie`, ou une valeur par ligne. Tous les autres cookies sont ignorés.
+ */
+export function extractRememberCookies(text) {
+  const found = {}
+  for (const name of REMEMBER_COOKIES) {
+    const match = new RegExp(`(?:^|[;\\s])${name}=([^;\\s]+)`).exec(String(text || ''))
+    if (match) found[name] = match[1].replace(/^["']|["']$/g, '')
+  }
+  return found
+}
+
+/** Une valeur saisie seule : sans espaces ni guillemets, et sans « TTFLmail= » si on l'a collé avec. */
+const cleanValue = (name, value) => String(value || '').trim().replace(/^["']|["']$/g, '').replace(new RegExp(`^${name}=`), '')
+
+/** Questions de l'installation → configuration, ou null s'il manque le code ou un cookie. `prompt` est injectable (tests). */
+export async function gatherConfig(prompt, say = console.log) {
+  const token = String(await prompt('Code de synchronisation (appli, onglet Équipe) : ', { hidden: true })).trim()
+  say('\nCookies TTFL : colle le court texte copié depuis TTFL (« TTFLmail=…; TTFLhash=… »).')
+  let cookies = extractRememberCookies(await prompt('Texte copié (ou Entrée pour saisir les deux valeurs une à une) : ', { hidden: true }))
+  if (!cookies.TTFLmail || !cookies.TTFLhash) {
+    say('Les deux cookies n’ont pas été reconnus dans ce texte : saisis-les un par un.')
+    cookies = {
+      TTFLmail: cleanValue('TTFLmail', await prompt('Valeur de TTFLmail : ', { hidden: true })),
+      TTFLhash: cleanValue('TTFLhash', await prompt('Valeur de TTFLhash : ', { hidden: true })),
+    }
+  }
+  const hourText = String(await prompt('Relever à partir de quelle heure, heure de Paris ? [9] : ')).trim()
+  if (!token || !cookies.TTFLmail || !cookies.TTFLhash) return null
+  const afterHour = /^\d{1,2}$/.test(hourText) ? Math.min(Number(hourText), 23) : 9
+  return { token, cookies, afterHour }
+}
+
 async function cmdSetup(dir, io = {}) {
   const p = paths(dir)
   const prompt = io.ask || ask
   const notify = io.notify || makeNotifier()
   console.log('Installation du relevé TTFL. Les valeurs secrètes ne s’affichent pas (une étoile par caractère).\n')
 
-  const token = await prompt('Code de synchronisation (appli, onglet Équipe) : ', { hidden: true })
-  const mail = await prompt('Cookie TTFLmail (valeur) : ', { hidden: true })
-  const hash = await prompt('Cookie TTFLhash (valeur) : ', { hidden: true })
-  const expires = await prompt('Date d’expiration de ces cookies (AAAA-MM-JJ, vide si inconnue) : ')
-  const hourText = await prompt('Relever à partir de quelle heure, heure de Paris ? [9] : ')
-  if (!token || !mail || !hash) {
-    console.error('\nIl manque le code ou un cookie : rien n’a été enregistré.')
+  const config = await gatherConfig(prompt)
+  if (!config) {
+    console.error('\nIl manque le code de synchronisation ou un cookie : rien n’a été enregistré.')
     return 1
   }
-  const afterHour = Number.isInteger(Number(hourText)) && hourText !== '' ? Math.min(Math.max(Number(hourText), 0), 23) : 9
-  const config = { token, cookies: { TTFLmail: mail, TTFLhash: hash }, afterHour }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(expires)) config.cookieExpiresAt = expires
   writePrivate(p.config, JSON.stringify(config, null, 2))
   console.log('\nConfiguration enregistrée (lisible par toi seul).')
 

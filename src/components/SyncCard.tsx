@@ -41,14 +41,17 @@ export function SyncCard({ team }: { team: TeamApi }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>()
   const base = `${location.origin}${location.pathname}`
   const scriptUrl = new URL('ttfl-releve.user.js', base).href
+  // Court texte « TTFLmail=…; TTFLhash=… » : seuls ces deux cookies sont copiés, pas les autres (publicité, mesure d'audience…).
+  const cookieSnippet =
+    "prompt('Copie ce texte', ['TTFLmail', 'TTFLhash'].map(n => document.cookie.split('; ').find(c => c.startsWith(n + '='))).join('; '))"
   const termuxCommands = [
-    'pkg update -y && pkg install -y nodejs termux-api',
+    'pkg update -y && pkg upgrade -y && pkg install -y nodejs termux-api',
     'mkdir -p ~/ttfl-releve && cd ~/ttfl-releve',
     `curl -fsSLO ${new URL('releve-termux.mjs', base).href}`,
     `curl -fsSLO ${scriptUrl}`,
     'npm install linkedom@0.18.15',
-    'node releve-termux.mjs setup',
   ].join('\n')
+  const setupCommand = 'cd ~/ttfl-releve && node releve-termux.mjs setup'
 
   const refresh = useCallback(
     () =>
@@ -199,15 +202,27 @@ export function SyncCard({ team }: { team: TeamApi }) {
             <strong>« sans restriction »</strong>, sinon Android arrête la tâche.
           </li>
           <li>
-            Ouvre Termux, copie puis colle ces commandes (Termux te demande d’autoriser le stockage et les notifications) :
+            Ouvre Termux, copie puis colle ces commandes. La première ligne met Termux à niveau : elle prend quelques minutes, et
+            si elle pose une question sur des fichiers de configuration, appuie simplement sur Entrée.
             <CommandBlock text={termuxCommands} />
+            Si Termux affiche « CANNOT LINK EXECUTABLE », la mise à niveau n’est pas passée : lance{' '}
+            <code>pkg upgrade -y</code> puis <code>pkg reinstall -y nodejs</code>, et reprends à partir de la ligne{' '}
+            <code>npm install</code>.
           </li>
           <li>
-            L’installation te demande, sans les afficher : le code de synchronisation (ci-dessus) puis les valeurs de{' '}
-            <strong>TTFLmail</strong> et <strong>TTFLhash</strong>. Sur un ordinateur, ouvre fantasy.trashtalk.co connecté, touche
-            F12, onglet <em>Application</em> → <em>Cookies</em> → <em>fantasy.trashtalk.co</em>, et copie ces deux valeurs (la
-            colonne <em>Expires</em> donne la date d’expiration). Transmets-les-toi par un moyen sûr, par exemple ton gestionnaire
-            de mots de passe, et supprime-les ensuite.
+            Prépare les deux cookies de connexion. Dans{' '}
+            <strong>Chrome</strong>, ouvre fantasy.trashtalk.co (connecté), touche la barre d’adresse, <strong>tape</strong>{' '}
+            <code>javascript:</code> à la main (Chrome retire ce début quand on le colle), puis colle ceci et valide :
+            <CommandBlock text={cookieSnippet} />
+            Une fenêtre affiche un court texte <code>TTFLmail=…; TTFLhash=…</code> : touche-le, « tout sélectionner », « copier ».
+            Sur ordinateur, ouvre la console (F12) et remplace <code>prompt('Copie ce texte', …)</code> par{' '}
+            <code>copy(…)</code>.
+          </li>
+          <li>
+            De retour dans Termux, lance la configuration :
+            <CommandBlock text={setupCommand} />
+            Elle te demande, sans les afficher, le code de synchronisation (ci-dessus), puis le texte copié à l’étape précédente.
+            Colle-les, elle ne garde que ces deux cookies. Ensuite, copie un mot au hasard pour vider le presse-papiers.
           </li>
           <li>Le premier relevé part tout de suite : une notification ✔ ou ✘ confirme que tout fonctionne.</li>
         </ol>
