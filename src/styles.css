@@ -463,18 +463,21 @@ select {
   gap: 6px;
   margin: 4px 0 0;
 }
-/* Adversaire du jour d'un favori : « vs » (domicile) ou « @ » (extérieur) puis le logo */
-.matchup {
-  display: inline-flex;
+/* Ligne « Ce soir » d'un favori : « vs » (domicile) ou « @ » (extérieur), logo, sigle, heure */
+.tonight {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-.matchup .vs {
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
   font-size: 0.85rem;
-  font-weight: 700;
   color: var(--muted);
+}
+.tonight .vs {
+  font-weight: 700;
+}
+.tonight strong {
+  color: var(--text);
 }
 /* Fond blanc : les logos sombres restent lisibles en thème sombre. */
 .opp-logo {

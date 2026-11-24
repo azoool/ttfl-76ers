@@ -6,14 +6,16 @@ export interface Opponent {
   team: TeamRef
   /** l'équipe du joueur joue à domicile (« vs ») ; sinon elle se déplace (« @ ») */
   atHome: boolean
+  /** coup d'envoi (ISO, UTC) */
+  startUtc: string
 }
 
 /** Pour chaque équipe qui joue ce jour-là (par identifiant ESPN), son adversaire et si elle reçoit ou se déplace. */
 export function opponentsByTeam(games: Game[]): Map<string, Opponent> {
   const map = new Map<string, Opponent>()
   for (const g of games) {
-    if (!map.has(g.home.id)) map.set(g.home.id, { team: g.away, atHome: true })
-    if (!map.has(g.away.id)) map.set(g.away.id, { team: g.home, atHome: false })
+    if (!map.has(g.home.id)) map.set(g.home.id, { team: g.away, atHome: true, startUtc: g.startUtc })
+    if (!map.has(g.away.id)) map.set(g.away.id, { team: g.home, atHome: false, startUtc: g.startUtc })
   }
   return map
 }
@@ -23,3 +25,7 @@ export const matchupSymbol = (o: Opponent): string => (o.atHome ? 'vs' : '@')
 
 /** Phrase lue par les lecteurs d'écran et affichée en infobulle : « À domicile contre Boston Celtics ». */
 export const matchupLabel = (o: Opponent): string => `${o.atHome ? 'À domicile contre' : 'À l’extérieur chez'} ${o.team.name}`
+
+/** Heure du coup d'envoi à Paris, « 02:00 » (les matchs NBA du soir tombent après minuit en France). */
+export const matchupTime = (o: Opponent): string =>
+  new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }).format(new Date(o.startUtc))

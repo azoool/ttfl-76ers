@@ -18,7 +18,7 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   comme les équipes (moyenne TTFL décroissante puis nom). Les favoris qui ne jouent pas ce jour-là sont rappelés dessous
   (pastille ✕ pour les retirer). Ils sont enregistrés sur l'appareil (localStorage), pas partagés avec l'équipe.
   Dans « Favoris », les joueurs sont séparés en **disponibles** et **indisponibles** pour les membres comptés, et chaque
-  case indique l'adversaire du jour : « vs » + logo quand le joueur joue à domicile, « @ » + logo à l'extérieur.
+  case indique, sous le nom, la ligne « Ce soir » : « vs » + logo + sigle quand le joueur joue à domicile, « @ » à l'extérieur, puis l'heure du match (heure de Paris).
   **Profil** : dans une équipe, seul ton propre membre est compté par défaut (tu vois tes disponibilités, pas celles de
   tout le monde) ; les pastilles de membres, « Moi seul » et « Toute l'équipe » changent ce choix, qui est mémorisé sur
   l'appareil.

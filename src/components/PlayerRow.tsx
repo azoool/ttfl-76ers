@@ -1,7 +1,7 @@
 import type { LockInfo, Member } from '../lib/availability'
 import { avgFormat, plural } from '../lib/format'
 import type { RankedRow } from '../lib/groups'
-import { matchupLabel, matchupSymbol, type Opponent } from '../lib/matchups'
+import { matchupLabel, matchupSymbol, matchupTime, type Opponent } from '../lib/matchups'
 
 function injuryBadge(status: string): { label: string; cls: string } {
   const s = status.toLowerCase()
@@ -49,23 +49,21 @@ export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggle
           <strong>{name}</strong>
           {teamLabel && <span className="muted"> · {teamLabel}</span>}
           {r.candidate.position && <span className="muted"> · {r.candidate.position}</span>}
-          {opponent && (
-            <>
-              {' '}
-              <span className="matchup" title={matchupLabel(opponent)}>
-                <span className="vs">{matchupSymbol(opponent)}</span>
-                {opponent.team.logo ? (
-                  <img className="opp-logo" src={opponent.team.logo} alt={opponent.team.name} width={22} height={22} loading="lazy" />
-                ) : (
-                  <strong>{opponent.team.abbr}</strong>
-                )}
-              </span>
-            </>
-          )}{' '}
+          {' '}
           {inj && (
             <span className={`badge ${inj.cls}`} title={r.candidate.injury?.comment}>
               {inj.label}
             </span>
+          )}
+          {opponent && (
+            <div className="tonight" title={matchupLabel(opponent)}>
+              Ce soir <span className="vs">{matchupSymbol(opponent)}</span>
+              {opponent.team.logo ? (
+                <img className="opp-logo" src={opponent.team.logo} alt={opponent.team.name} width={22} height={22} loading="lazy" />
+              ) : null}
+              <strong>{opponent.team.abbr}</strong>
+              <span>· {matchupTime(opponent)}</span>
+            </div>
           )}
         </div>
         <div
