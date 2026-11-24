@@ -178,11 +178,21 @@ export function SyncCard({ team }: { team: TeamApi }) {
         </div>
         <ol className="steps">
           <li>
-            Installe <strong>Termux</strong> et <strong>Termux:API</strong> depuis{' '}
+            Installe <strong>Termux</strong> et <strong>Termux:API</strong> depuis F-Droid (
             <a href="https://f-droid.org/packages/com.termux/" target="_blank" rel="noopener">
-              F-Droid
-            </a>{' '}
-            (pas depuis le Play Store : version trop ancienne).
+              Termux
+            </a>
+            ,{' '}
+            <a href="https://f-droid.org/packages/com.termux.api/" target="_blank" rel="noopener">
+              Termux:API
+            </a>
+            ) ou depuis{' '}
+            <a href="https://github.com/termux/termux-app/releases" target="_blank" rel="noopener">
+              GitHub
+            </a>
+            , <strong>pas depuis le Play Store</strong> : l’équipe Termux n’y publie plus, et les deux applis doivent venir de la
+            même source. Pendant l’installation, Android ou Play Protect peut afficher « application conçue pour une ancienne
+            version d’Android » : c’est normal pour Termux, choisis « Installer quand même ».
           </li>
           <li>
             Dans les réglages Android, pour ces deux applis : autorise les <strong>notifications</strong> et mets la batterie sur{' '}
