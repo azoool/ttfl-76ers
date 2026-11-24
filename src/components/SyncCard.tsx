@@ -42,8 +42,9 @@ export function SyncCard({ team }: { team: TeamApi }) {
   const base = `${location.origin}${location.pathname}`
   const scriptUrl = new URL('ttfl-releve.user.js', base).href
   // Court texte « TTFLmail=…; TTFLhash=… » : seuls ces deux cookies sont copiés, pas les autres (publicité, mesure d'audience…).
-  const cookieSnippet =
-    "prompt('Copie ce texte', ['TTFLmail', 'TTFLhash'].map(n => document.cookie.split('; ').find(c => c.startsWith(n + '='))).join('; '))"
+  const cookieText = "['TTFLmail', 'TTFLhash'].map(n => document.cookie.split('; ').find(c => c.startsWith(n + '='))).join('; ')"
+  const cookieCopyLine = `copy(${cookieText})`
+  const cookieBookmarklet = `javascript:prompt('Copie ce texte', ${cookieText})`
   const termuxCommands = [
     'pkg update -y && pkg upgrade -y && pkg install -y nodejs termux-api',
     'mkdir -p ~/ttfl-releve && cd ~/ttfl-releve',
@@ -210,13 +211,29 @@ export function SyncCard({ team }: { team: TeamApi }) {
             <code>npm install</code>.
           </li>
           <li>
-            Prépare les deux cookies de connexion. Dans{' '}
-            <strong>Chrome</strong>, ouvre fantasy.trashtalk.co (connecté), touche la barre d’adresse, <strong>tape</strong>{' '}
-            <code>javascript:</code> à la main (Chrome retire ce début quand on le colle), puis colle ceci et valide :
-            <CommandBlock text={cookieSnippet} />
-            Une fenêtre affiche un court texte <code>TTFLmail=…; TTFLhash=…</code> : touche-le, « tout sélectionner », « copier ».
-            Sur ordinateur, ouvre la console (F12) et remplace <code>prompt('Copie ce texte', …)</code> par{' '}
-            <code>copy(…)</code>.
+            Prépare les deux cookies de connexion : il s’agit d’un court texte <code>TTFLmail=…; TTFLhash=…</code> à copier depuis
+            TTFL, connecté. <strong>Choisis une des deux voies</strong> (la première est la plus sûre).
+            <p>
+              <strong>Voie A, sur ordinateur.</strong> Ouvre fantasy.trashtalk.co connecté, touche F12, onglet{' '}
+              <em>Console</em>. Chrome demande de taper <code>allow pasting</code> avant de coller : fais-le. Colle ceci puis
+              Entrée : le texte est copié dans le presse-papiers.
+            </p>
+            <CommandBlock text={cookieCopyLine} />
+            <p className="muted small">
+              Envoie ce texte sur ton téléphone par un moyen sûr (note de ton gestionnaire de mots de passe, ou « messages
+              enregistrés » d’une messagerie chiffrée), puis supprime-le.
+            </p>
+            <p>
+              <strong>Voie B, sur le téléphone, avec un favori Chrome.</strong> Ajoute n’importe quelle page aux favoris (menu ⋮,
+              puis l’étoile). Menu ⋮ → <em>Favoris</em>, appui long sur ce favori → <em>Modifier</em> : nom{' '}
+              <code>cookies</code>, et dans le champ de l’adresse colle ceci, début compris :
+            </p>
+            <CommandBlock text={cookieBookmarklet} />
+            <p>
+              Ouvre ensuite fantasy.trashtalk.co connecté, touche la barre d’adresse, écris <code>cookies</code> et touche la
+              suggestion étoilée <em>cookies</em>. Une fenêtre affiche le texte : « tout sélectionner », « copier ». Je n’ai pas pu
+              tester cette voie sur un téléphone : si rien ne s’affiche, utilise la voie A.
+            </p>
           </li>
           <li>
             De retour dans Termux, lance la configuration :

@@ -346,14 +346,35 @@ const HELP = `TTFL 76ersFR — relevé des picks (Termux) v${VERSION}
 Fichiers (dossier du programme) : config.json (cookies et code, confidentiels), state.json, run.log.`
 
 /**
- * Retrouve TTFLmail et TTFLhash dans un texte collé : « TTFLmail=…; TTFLhash=… » (ce que produit le guide de l'appli),
- * ou le texte complet de `document.cookie`, ou une valeur par ligne. Tous les autres cookies sont ignorés.
+ * Retrouve TTFLmail et TTFLhash dans un texte collé, quel que soit le format :
+ *  - « TTFLmail=…; TTFLhash=… » (ce que produit le guide de l'appli), le texte complet de `document.cookie`, ou une valeur par ligne ;
+ *  - un export JSON d'extension (Cookie-Editor, EditThisCookie… : une liste d'objets avec « name » et « value ») ;
+ *  - un export « cookies.txt » (format Netscape : colonnes séparées par des tabulations).
+ * Tous les autres cookies sont ignorés.
  */
-export function extractRememberCookies(text) {
+export function extractRememberCookies(input) {
+  const text = String(input || '')
   const found = {}
+  const take = (name, value) => {
+    const clean = String(value || '').replace(/^["']|["']$/g, '')
+    if (REMEMBER_COOKIES.includes(name) && clean && !found[name]) found[name] = clean
+  }
+
+  const trimmed = text.trim()
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    try {
+      const data = JSON.parse(trimmed)
+      const list = Array.isArray(data) ? data : Array.isArray(data && data.cookies) ? data.cookies : [data]
+      for (const cookie of list) if (cookie && typeof cookie === 'object') take(cookie.name, cookie.value)
+    } catch {
+      // pas du JSON valide : on essaie les autres formats
+    }
+  }
   for (const name of REMEMBER_COOKIES) {
-    const match = new RegExp(`(?:^|[;\\s])${name}=([^;\\s]+)`).exec(String(text || ''))
-    if (match) found[name] = match[1].replace(/^["']|["']$/g, '')
+    const pair = new RegExp(`(?:^|[;\\s])${name}=([^;\\s]+)`).exec(text)
+    if (pair) take(name, pair[1])
+    const netscape = new RegExp(`\\t${name}\\t([^\\t\\r\\n]+)`).exec(text)
+    if (netscape) take(name, netscape[1])
   }
   return found
 }

@@ -387,3 +387,30 @@ describe('gatherConfig', () => {
     expect(await termux.gatherConfig(answers([TOKEN, 'TTFLmail=M', '', '']).prompt, quiet)).toBeNull()
   })
 })
+
+describe('extractRememberCookies : autres formats d’export', () => {
+  it('lit un export JSON d’extension (liste d’objets name/value), en ignorant les autres cookies', () => {
+    const json = JSON.stringify([
+      { name: '_ga', value: 'GA1', domain: '.trashtalk.co' },
+      { name: 'TTFLmail', value: 'm%40x.fr', domain: 'fantasy.trashtalk.co', httpOnly: false },
+      { name: 'TTFLhash', value: 'HH', path: '/' },
+    ])
+    expect(termux.extractRememberCookies(json)).toEqual({ TTFLmail: 'm%40x.fr', TTFLhash: 'HH' })
+    expect(termux.extractRememberCookies(JSON.stringify({ cookies: [{ name: 'TTFLhash', value: 'H' }] }))).toEqual({ TTFLhash: 'H' })
+  })
+
+  it('lit un export « cookies.txt » (Netscape, colonnes séparées par des tabulations)', () => {
+    const netscape = [
+      '# Netscape HTTP Cookie File',
+      'fantasy.trashtalk.co\tFALSE\t/\tFALSE\t1796000000\tPHPSESSID\tabc',
+      'fantasy.trashtalk.co\tFALSE\t/\tFALSE\t1796000000\tTTFLmail\tmail-value',
+      '#HttpOnly_fantasy.trashtalk.co\tFALSE\t/\tFALSE\t1796000000\tTTFLhash\thash-value',
+    ].join('\n')
+    expect(termux.extractRememberCookies(netscape)).toEqual({ TTFLmail: 'mail-value', TTFLhash: 'hash-value' })
+  })
+
+  it('ne plante pas sur un JSON invalide et retombe sur les autres formats', () => {
+    expect(termux.extractRememberCookies('[ {pas du json} ] TTFLmail=m; TTFLhash=h')).toEqual({ TTFLmail: 'm', TTFLhash: 'h' })
+    expect(termux.extractRememberCookies('[]')).toEqual({})
+  })
+})
