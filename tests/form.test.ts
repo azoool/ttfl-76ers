@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formAverage, nextFormMode, parseGameLog, type RawGameLog } from '../src/lib/form'
+import { formAverage, formPeriodText, nextFormMode, parseGameLog, type RawGameLog } from '../src/lib/form'
 
 const names = [
   'minutes',
@@ -77,6 +77,14 @@ describe('formAverage', () => {
   it('arrondit au centième et ne renvoie rien sans match', () => {
     expect(formAverage([{ date: 'a', ttfl: 10 }, { date: 'b', ttfl: 10 }, { date: 'c', ttfl: 11 }], 3)?.avg).toBe(10.33)
     expect(formAverage([], 5)).toBeUndefined()
+  })
+})
+
+describe('formPeriodText', () => {
+  it('dit sur quels matchs porte la moyenne affichée', () => {
+    expect(formPeriodText('season', '2026-27')).toBe('sur la saison régulière 2026-27')
+    expect(formPeriodText('last10', '2026-27')).toBe('sur les 10 derniers matchs joués')
+    expect(formPeriodText('last5', '2026-27')).toBe('sur les 5 derniers matchs joués')
   })
 })
 

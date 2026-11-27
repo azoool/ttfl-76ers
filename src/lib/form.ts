@@ -92,3 +92,7 @@ export const nextFormMode = (mode: FormMode): FormMode => (mode === 'season' ? '
 
 /** Nombre de matchs que couvre chaque mode de forme. */
 export const FORM_GAMES: Record<Exclude<FormMode, 'season'>, number> = { last10: 10, last5: 5 }
+
+/** Fin de la phrase « points TTFL par match … » affichée au-dessus des listes. */
+export const formPeriodText = (mode: FormMode, season: string): string =>
+  mode === 'season' ? `sur la saison régulière ${season}` : `sur les ${FORM_GAMES[mode]} derniers matchs joués`

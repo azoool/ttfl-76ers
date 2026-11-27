@@ -1,5 +1,6 @@
 import type { Candidate } from './availability'
 import { parseGameLog, type GameLine, type RawGameLog } from './form'
+import { createDeduper, createLimiter } from './limit'
 import { parseSeasonStats, type RawSeasonStats, type SeasonStats } from './seasonStats'
 
 // API publique (non officielle) d'ESPN : renvoie `Access-Control-Allow-Origin: *`,
@@ -119,15 +120,22 @@ export function fetchSeasonStats(): Promise<SeasonStats> {
   })
 }
 
+// La période s'applique à tous les joueurs : une équipe dépliée demande donc ses matchs d'un coup.
+const gameLogQueue = createLimiter(6)
+const gameLogOnce = createDeduper<GameLine[]>()
+
 /**
  * Les 10 derniers matchs joués d'un joueur (saison régulière), du plus récent au plus ancien, avec leur score TTFL.
- * Une requête d'environ 8 Ko, faite au premier clic sur la moyenne ; mise en cache 2 h.
+ * Une requête d'environ 8 Ko par joueur affiché, faite quand on quitte la moyenne de saison ; mise en cache 2 h.
+ * Au plus 6 requêtes à la fois ; un joueur présent deux fois (favoris et équipe) n'est demandé qu'une fois.
  */
 export function fetchRecentGames(athleteId: string): Promise<GameLine[]> {
-  return cached(`gamelog1.${athleteId}`, 2 * 3_600_000, async () => {
-    const url = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${encodeURIComponent(athleteId)}/gamelog?region=us&lang=en&contentorigin=espn`
-    return parseGameLog(await getJson<RawGameLog>(url)).slice(0, 10)
-  })
+  return gameLogOnce(athleteId, () =>
+    cached(`gamelog1.${athleteId}`, 2 * 3_600_000, async () => {
+      const url = `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${encodeURIComponent(athleteId)}/gamelog?region=us&lang=en&contentorigin=espn`
+      return parseGameLog(await gameLogQueue(() => getJson<RawGameLog>(url))).slice(0, 10)
+    }),
+  )
 }
 
 /** Supprime les entrées de cache d'avant l'ajout des logos et des identifiants de joueurs. */

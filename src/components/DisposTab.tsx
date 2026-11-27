@@ -16,6 +16,7 @@ import {
 } from '../lib/favorites'
 import { plural } from '../lib/format'
 import { groupByTeam, type RankedRow } from '../lib/groups'
+import { formPeriodText, nextFormMode, type FormMode } from '../lib/form'
 import { opponentsByTeam } from '../lib/matchups'
 import { indexStats, type StatsIndex } from '../lib/seasonStats'
 import { playerKey } from '../lib/ttfl'
@@ -56,6 +57,9 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
   const [favorites, setFavorites] = useState(loadFavorites)
   const [favOpen, setFavOpen] = useState(true)
+  // Période des moyennes TTFL, commune à tous les joueurs.
+  const [formMode, setFormMode] = useState<FormMode>('season')
+  const cycleAverages = () => setFormMode(nextFormMode)
 
   useEffect(() => saveFavorites(favorites), [favorites])
 
@@ -137,6 +141,8 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
           onToggleFavorite={() => toggleFav(ranked.row.candidate)}
           teamLabel={teamAbbr.get(ranked.row.candidate.teamId ?? '') ?? ranked.row.candidate.team}
           opponent={opponents.get(ranked.row.candidate.teamId ?? '')}
+          mode={formMode}
+          onCycleAverage={cycleAverages}
         />
       ))}
     </ul>
@@ -301,7 +307,8 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
           </div>
           {statsIndex && (
             <p className="muted small">
-              Moyenne TTFL : points TTFL par match sur la saison régulière {statsIndex.season} (stats ESPN).
+              Moyenne TTFL : points TTFL par match {formPeriodText(formMode, statsIndex.season)} (stats ESPN). Touche une
+              moyenne pour changer la période de tous les joueurs.{formMode !== 'season' && ' Les listes restent classées sur la saison.'}
             </p>
           )}
 
@@ -403,6 +410,8 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
                         active={active}
                         favorite={favKeys.has(favoriteKey(ranked.row.candidate))}
                         onToggleFavorite={() => toggleFav(ranked.row.candidate)}
+                        mode={formMode}
+                        onCycleAverage={cycleAverages}
                       />
                     ))}
                   </ul>

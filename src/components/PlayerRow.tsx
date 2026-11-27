@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { LockInfo, Member } from '../lib/availability'
 import { fetchRecentGames } from '../lib/espn'
-import { FORM_GAMES, formAverage, nextFormMode, type FormMode, type GameLine } from '../lib/form'
+import { FORM_GAMES, formAverage, type FormMode, type GameLine } from '../lib/form'
 import { avgFormat, plural } from '../lib/format'
 import type { RankedRow } from '../lib/groups'
 import { matchupLabel, matchupSymbol, matchupTime, type Opponent } from '../lib/matchups'
@@ -29,6 +29,10 @@ interface Props {
   teamLabel?: string
   /** adversaire du jour : « vs » + logo à domicile, « @ » + logo à l'extérieur */
   opponent?: Opponent
+  /** période des moyennes, la même pour tous les joueurs */
+  mode: FormMode
+  /** toucher une moyenne change la période de tous les joueurs */
+  onCycleAverage: () => void
 }
 
 type Recent = GameLine[] | 'loading' | 'error' | undefined
@@ -56,24 +60,28 @@ function averageView(mode: FormMode, stat: RankedRow['stat'], recent: Recent): {
   }
 }
 
-export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggleFavorite, teamLabel, opponent }: Props) {
+export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggleFavorite, teamLabel, opponent, mode, onCycleAverage }: Props) {
   const inj = r.candidate.injury ? injuryBadge(r.candidate.injury.status) : undefined
   const blocked = active.filter((m) => r.perMember[m.id].state !== 'free')
   const name = r.candidate.name
-  const [mode, setMode] = useState<FormMode>('season')
   const [recent, setRecent] = useState<Recent>(undefined)
   const view = averageView(mode, stat, recent)
+  const id = r.candidate.id
 
-  function cycleAverage() {
-    const next = nextFormMode(mode)
-    setMode(next)
-    if (next !== 'season' && (recent === undefined || recent === 'error')) {
-      const id = r.candidate.id
-      if (!id) return setRecent('error')
-      setRecent('loading')
-      fetchRecentGames(id).then(setRecent, () => setRecent('error'))
+  // Les derniers matchs ne sont demandés que hors moyenne de saison ; un échec est retenté au changement de période.
+  useEffect(() => {
+    if (mode === 'season') return
+    if (!id) return setRecent('error')
+    let cancelled = false
+    setRecent((prev) => (Array.isArray(prev) ? prev : 'loading'))
+    fetchRecentGames(id).then(
+      (games) => !cancelled && setRecent(games),
+      () => !cancelled && setRecent('error'),
+    )
+    return () => {
+      cancelled = true
     }
-  }
+  }, [mode, id])
 
   return (
     <li className="player">
@@ -111,9 +119,9 @@ export function PlayerRow({ ranked: { row: r, stat }, active, favorite, onToggle
         <button
           type="button"
           className={`avg ${mode !== 'season' ? 'form' : ''}`}
-          title={`${view.title} (toucher pour changer : saison, 10 derniers, 5 derniers)`}
-          aria-label={`${view.value}, ${view.caption}. Changer la période de la moyenne`}
-          onClick={cycleAverage}
+          title={`${view.title} (toucher pour changer, pour tous les joueurs : saison, 10 derniers, 5 derniers)`}
+          aria-label={`${view.value}, ${view.caption}. Changer la période des moyennes de tous les joueurs`}
+          onClick={onCycleAverage}
         >
           <strong>{view.value}</strong>
           <small>{view.caption}</small>
