@@ -321,20 +321,73 @@ select {
   box-shadow: inset 0 3px 0 var(--accent);
 }
 
-/* Barre de date */
-.datebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
+/* Frise des jours : les confrontations TTFL (jours de match des 76ers) en rouge, le jour affiché cerclé. */
+.duelstrip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
 }
-.datebar-label {
+.duelday {
+  appearance: none;
+  min-width: 0;
+  height: 70px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 1.1rem;
-  text-transform: capitalize;
+  justify-content: center;
+  line-height: 1.2;
+  font: inherit;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.duelday span,
+.duelday small {
+  font-size: 0.7rem;
+}
+.duelday strong {
+  font-size: 1.15rem;
+}
+.duelday.selected {
+  color: var(--text);
+  box-shadow: inset 0 0 0 3px var(--text);
+}
+.duelday.duel {
+  color: #fff;
+  background: #c8102e;
+  border-color: #c8102e;
+}
+.duelday.duel small {
+  font-weight: 800;
+}
+
+/* Sous la frise : l'annonce de la confrontation, entre les flèches jour par jour */
+.duelbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.duelbar .btn {
+  flex: none;
+}
+.duelbar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+  line-height: 1.3;
 }
 
 /* Membres, filtres */

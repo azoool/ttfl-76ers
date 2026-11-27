@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { availabilityRows, type Member } from '../lib/availability'
 import { loadCounted, resolveCounted, saveCounted } from '../lib/counted'
-import { addDays, daysBetween, formatDayFr, parisToday } from '../lib/dates'
+import { daysBetween, parisToday } from '../lib/dates'
 import { deckClosing } from '../lib/deck'
 import { fetchNight, fetchSeasonStats, type Night } from '../lib/espn'
 import {
@@ -20,6 +20,7 @@ import { formPeriodText, nextFormMode, type FormMode } from '../lib/form'
 import { opponentsByTeam } from '../lib/matchups'
 import { indexStats, type StatsIndex } from '../lib/seasonStats'
 import { playerKey } from '../lib/ttfl'
+import { DuelStrip } from './DuelStrip'
 import { PlayerRow } from './PlayerRow'
 
 type Load =
@@ -178,22 +179,7 @@ export function DisposTab({ members, goImport, meId, scope }: DisposProps) {
 
   return (
     <>
-      <div className="datebar">
-        <button className="btn icon" onClick={() => setDate(addDays(date, -1))} aria-label="Jour précédent">
-          ‹
-        </button>
-        <div className="datebar-label">
-          <strong>{formatDayFr(date)}</strong>
-          {date !== today && (
-            <button className="link" onClick={() => setDate(today)}>
-              Revenir à aujourd’hui
-            </button>
-          )}
-        </div>
-        <button className="btn icon" onClick={() => setDate(addDays(date, 1))} aria-label="Jour suivant">
-          ›
-        </button>
-      </div>
+      <DuelStrip date={date} today={today} onSelect={setDate} />
 
       {load.status === 'ok' && (
         <p className="muted small center">

@@ -22,6 +22,11 @@ Fonctionne sur Android et iPhone : un lien à partager, rien à télécharger su
   **Profil** : dans une équipe, seul ton propre membre est compté par défaut (tu vois tes disponibilités, pas celles de
   tout le monde) ; les pastilles de membres, « Moi seul » et « Toute l'équipe » changent ce choix, qui est mémorisé sur
   l'appareil.
+  **Jours de confrontation** : chaque jour où les 76ers jouent en NBA, l'équipe 76ersFR affronte l'équipe TTFL qui
+  représente leur adversaire. En haut de la page, une frise de sept jours (comptés à partir d'aujourd'hui) met ces
+  jours en rouge, avec le sigle de l'adversaire (« @ » à l'extérieur). Sous la frise : la confrontation du jour affiché,
+  la suivante, et les flèches pour avancer ou reculer d'un jour. Source : le calendrier des 76ers d'ESPN (relu au plus
+  tard toutes les 3 h), recoupé le 2026-11-27 avec les matchs jour par jour du 20 octobre au 31 décembre, sans écart.
 - **Importer** : on colle le tableau `?tpl=historique` de TTFL ; le parseur reconnaît chaque pick et vérifie le score avec la formule TTFL.
 - **Installer** : parcours adapté à l'appareil (bouton d'installation Android, guide en 3 étapes sur iPhone,
   aide si le lien est ouvert dans WhatsApp/Instagram), QR code et bouton Partager.

@@ -1,4 +1,5 @@
 import type { Candidate } from './availability'
+import { parseSchedule, SIXERS_ID, type Duel, type RawSchedule } from './duels'
 import { parseGameLog, type GameLine, type RawGameLog } from './form'
 import { createDeduper, createLimiter } from './limit'
 import { parseSeasonStats, type RawSeasonStats, type SeasonStats } from './seasonStats'
@@ -136,6 +137,11 @@ export function fetchRecentGames(athleteId: string): Promise<GameLine[]> {
       return parseGameLog(await gameLogQueue(() => getJson<RawGameLog>(url))).slice(0, 10)
     }),
   )
+}
+
+/** Les jours de confrontation, tirés du calendrier des 76ers (reports et ajouts d'ESPN repris sous 3 h). */
+export function fetchSixersDuels(): Promise<Duel[]> {
+  return cached('duels1', 3 * 3_600_000, async () => parseSchedule(await getJson<RawSchedule>(`${BASE}/teams/${SIXERS_ID}/schedule`)))
 }
 
 /** Supprime les entrées de cache d'avant l'ajout des logos et des identifiants de joueurs. */
